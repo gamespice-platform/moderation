@@ -1,0 +1,7 @@
+# frame-hazards
+# Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
+examples/punishment_api_server.gd::_process::alloc_array	1
+examples/punishment_api_server.gd::_pump::string_build	2
+examples/punishment_api_server.gd::_respond::alloc_array	1
+examples/punishment_api_server.gd::_respond::string_build	2
+examples/punishment_api_server.gd::_send_raw::string_build	4
