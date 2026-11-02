@@ -1,8 +1,6 @@
 # size
 # Baselines only shrink: scripts/<gate> --update lowers or drops entries and refuses to add.
-addons/dot_moderation/integrations/dot_mod_tool_commands.gd	837
-addons/dot_moderation/integrations/dot_mod_tool_commands.gd::_run	86
-addons/dot_moderation/store/dot_punishment_store_rest.gd::_load	85
+addons/dot_moderation/integrations/dot_mod_tool_commands.gd	836
 addons/dot_moderation/tools/dot_mod_tools.gd	967
 examples/moderation_selftest.gd	1821
 examples/moderation_selftest.gd::_test_address_bans	121

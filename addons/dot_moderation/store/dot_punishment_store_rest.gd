@@ -125,13 +125,11 @@ func _load(url: String) -> DotResult:
 		# reason this returns a failure instead of an empty list.
 		return response.wrap("Could not read punishments from the API.")
 
-	# [b]`get_json` hands back the parsed body itself, not a wrapper around it.[/b]
-	# Reaching for `.value["json"]` produced null on every successful read, which the
-	# check below then reported as "the API did not return an object" — a failure that
-	# blames the far end for something on this side. The suite caught it because it runs
-	# against a real HTTP server rather than a mock that returns whatever was assumed.
-	var body: Variant = response.value
+	return _parse_entries(url, response.value)
 
+
+## Validates the response body and builds the records; `get_json` already hands back the parsed body.
+func _parse_entries(url: String, body: Variant) -> DotResult:
 	if not (body is Dictionary):
 		failures += 1
 		return DotResult.fail(
@@ -142,12 +140,7 @@ func _load(url: String) -> DotResult:
 
 	var document: Dictionary = body
 
-	# [b]The key has to be PRESENT, not merely default to an empty array.[/b] Written as
-	# `document.get("punishments", [])` this accepted any JSON object at all: a response
-	# with a different shape, a paginated envelope, an error body that happened to be
-	# 200, all of them fell through to an empty list and were reported as a successful
-	# read of nothing. Which means nobody is banned. This is the single worst failure
-	# this addon has and it was one default argument away.
+	# The key must be present: defaulting to [] would read any 200 body as "nobody is banned".
 	if not document.has("punishments"):
 		failures += 1
 		return DotResult.fail(
@@ -178,9 +171,7 @@ func _load(url: String) -> DotResult:
 		var valid := punishment.validate()
 
 		if not valid.ok:
-			# One bad record does not condemn the response, for the same reason one bad
-			# line does not condemn the file. The API is somebody else's software and it
-			# will have a row this build does not like.
+			# The API is somebody else's software; one bad row does not condemn the response.
 			DotLog.warn(CHANNEL, "skipping an unusable record from the API", {
 				"why": valid.error.message
 			})

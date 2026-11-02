@@ -289,8 +289,7 @@ func _run(role: String, ctx: Object) -> void:
 	var target_text := args[0] if args.size() > 0 else ""
 	var rest := Array(args).slice(1)
 
-	# The toggles take an optional player and an optional on|off, in either order people
-	# actually type: `noclip`, `noclip off`, `noclip bob`, `noclip bob on`.
+	# Toggles take an optional player and on|off: `noclip`, `noclip off`, `noclip bob on`.
 	if TOGGLE_ROLES.has(role) and args.size() == 1 and _parse_switch(args[0]) != null:
 		target_text = ""
 		rest = [args[0]]
@@ -310,10 +309,9 @@ func _run(role: String, ctx: Object) -> void:
 
 	var done := PackedStringArray()
 	var failures := PackedStringArray()
-	# For a toggle typed without on|off: what each target ended up as, so the reply can say
-	# "on" rather than "toggled" when every one of them went the same way.
+	# Toggle typed without on|off: what each target ended up as.
 	var ended_on: Array[bool] = []
-	# For a multiplier: what each target was actually put on. See below.
+	# Multiplier: what each target was actually put on.
 	var applied: Array = []
 
 	var caller: Variant = ctx.get("session")
@@ -347,24 +345,31 @@ func _run(role: String, ctx: Object) -> void:
 
 		_after(role, ctx, session, id, result, rest)
 
-	var switch_word := ""
-	if not ended_on.is_empty():
-		switch_word = "on" if ended_on.all(func(v: bool) -> bool: return v) else (
-			"off" if ended_on.all(func(v: bool) -> bool: return not v) else "toggled"
-		)
+	var switch_word := _switch_word(ended_on)
+	var said := _said_args(rest, applied)
 
-	# A game whose speeds are a ladder applies the nearest step, and the reply and the room
-	# are told the step: "set to 2.2x speed" about a player on 2x is the tool contradicting
-	# its own record (`multiplier_of`, `modtools`) and the player's own line, which already
-	# said 2. The typed number stands only when the targets landed on different steps.
-	var said := rest
+	_report(role, ctx, done, failures, skipped, rest, switch_word, said)
 
+
+## "on" or "off" when every target went the same way, else "toggled"; empty when nothing toggled.
+func _switch_word(ended_on: Array[bool]) -> String:
+	if ended_on.is_empty():
+		return ""
+
+	if ended_on.all(func(v: bool) -> bool: return v):
+		return "on"
+
+	return "off" if ended_on.all(func(v: bool) -> bool: return not v) else "toggled"
+
+
+## The reply names the applied ladder step when every target landed on the same one.
+func _said_args(rest: Array, applied: Array) -> Array:
 	if not applied.is_empty() and applied.all(
 		func(v: float) -> bool: return is_equal_approx(v, float(applied[0]))
 	):
-		said = [_multiplier_text(float(applied[0]))] + rest.slice(1)
+		return [_multiplier_text(float(applied[0]))] + rest.slice(1)
 
-	_report(role, ctx, done, failures, skipped, rest, switch_word, said)
+	return rest
 
 
 func _apply(
@@ -440,12 +445,10 @@ func _apply(
 		"bring":
 			return await tools.bring(actor, id, actor_level)
 		"goto":
-			# The caller is the one who moves, so the target is not asked about immunity —
-			# DotModTools.goto's own rule.
+			# The caller moves, so no immunity check (DotModTools.goto's rule).
 			return await tools.goto(actor, id)
 		"send":
-			# The destination is somewhere to go, not somebody acted on, so it is looked up
-			# without the kick-style immunity check: a moderator may send somebody TO an admin.
+			# A destination, not a target: a moderator may send somebody TO an admin.
 			var destination := _destination(ctx, str(rest[0]) if rest.size() > 0 else "")
 			if not destination.ok:
 				return destination
@@ -460,9 +463,7 @@ func _apply(
 func _after(
 	role: String, _ctx: Object, session: Object, id: StringName, result: DotResult, rest: Array
 ) -> void:
-	# The server's own idea of the name, too. Chat, `status` and the scoreboard read
-	# `display_name`, and a rename the game applied and the server did not is a player
-	# called one thing in the world and another in every line they type.
+	# Chat, `status` and the scoreboard read `display_name`, so the server must learn a rename too.
 	if role == "rename" and "display_name" in session:
 		var wanted := " ".join(rest).strip_edges()
 		var applied: Variant = result.value
@@ -698,9 +699,8 @@ func _group(ctx: Object, selector: String) -> DotResult:
 				if str(team_fn.call(_id_of(session as Object))).to_lower() == wanted:
 					picked.append(session)
 
-	# Immunity per player, exactly as resolve_target applies it to one — and skipped
-	# rather than refused, because "@all" on a server with one senior admin on it should
-	# not do nothing to everybody else.
+	# Immunity as resolve_target applies it, but skipped rather than refused: "@all" must
+	# still act on everybody else.
 	var allowed: Array = []
 	var skipped := 0
 
@@ -748,8 +748,7 @@ func _complete_players(partial: String, selectors: bool) -> PackedStringArray:
 	for session: Variant in everyone:
 		var shown := str((session as Object).get("display_name"))
 		if lowered == "" or shown.to_lower().begins_with(lowered):
-			# Quoted, as dot-server's own completer does: a name with a space would
-			# otherwise tokenize into two arguments.
+			# Quoted so a name with a space stays one argument.
 			out.append("\"%s\"" % shown if shown.contains(" ") else shown)
 
 	return out
