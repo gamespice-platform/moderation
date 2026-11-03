@@ -718,56 +718,16 @@ func _group(ctx: Object, selector: String) -> DotResult:
 func _completer_for(role: String) -> Callable:
 	return func(partial: String, index: int) -> PackedStringArray:
 		if index == 0 and role != "modtools":
-			return _complete_players(partial, true)
+			return DotModToolCompletion.players(server, alive_fn, partial, true)
 		if index == 0:
-			return _complete_players(partial, false)
+			return DotModToolCompletion.players(server, alive_fn, partial, false)
 		if index == 1 and role == "send":
-			return _complete_players(partial, false)
+			return DotModToolCompletion.players(server, alive_fn, partial, false)
 		if index == 1 and role == "give" and items_fn.is_valid():
-			return _complete_from(items_fn.call(), partial)
+			return DotModToolCompletion.from_list(items_fn.call(), partial)
 		if index == 1 and TOGGLE_ROLES.has(role):
-			return _complete_from(PackedStringArray(["on", "off"]), partial)
+			return DotModToolCompletion.from_list(PackedStringArray(["on", "off"]), partial)
 		return PackedStringArray()
-
-
-func _complete_players(partial: String, selectors: bool) -> PackedStringArray:
-	var out := PackedStringArray()
-	var lowered := partial.to_lower()
-
-	if selectors:
-		for selector in ["@me", "@all", "@others"]:
-			if selector.begins_with(lowered):
-				out.append(selector)
-		if alive_fn.is_valid():
-			for selector in ["@alive", "@dead"]:
-				if selector.begins_with(lowered):
-					out.append(selector)
-
-	var everyone: Variant = server.call("playing_sessions") if server.has_method("playing_sessions") else []
-
-	for session: Variant in everyone:
-		var shown := str((session as Object).get("display_name"))
-		if lowered == "" or shown.to_lower().begins_with(lowered):
-			# Quoted so a name with a space stays one argument.
-			out.append("\"%s\"" % shown if shown.contains(" ") else shown)
-
-	return out
-
-
-func _complete_from(values: Variant, partial: String) -> PackedStringArray:
-	var out := PackedStringArray()
-	var list: Array = []
-
-	if values is PackedStringArray:
-		list = Array(values as PackedStringArray)
-	elif values is Array:
-		list = values as Array
-
-	for value: Variant in list:
-		if str(value).to_lower().begins_with(partial.to_lower()):
-			out.append(str(value))
-
-	return out
 
 
 # --- Context helpers -------------------------------------------------------------
