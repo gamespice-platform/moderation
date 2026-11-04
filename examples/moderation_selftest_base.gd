@@ -463,37 +463,7 @@ func _test_scope() -> void:
 func _test_address_bans() -> void:
 	_section("banning a machine rather than a person")
 
-	# How a subject is spelled decides whether the two ends ever meet. A ban filed
-	# against "1.2.3.4" and checked against what a transport actually reports —
-	# "1.2.3.4:51234" — is two strings and no error.
-	_check(
-		DotPunishmentSubject.for_address("1.2.3.4:51234") == "ip:1.2.3.4",
-		"the port is not part of the subject"
-	)
-	_check(
-		DotPunishmentSubject.for_address("[2001:db8::1]:9999") == "ip:2001:db8::1",
-		"nor is a bracketed IPv6 port"
-	)
-	_check(
-		DotPunishmentSubject.for_address("ip:1.2.3.4") == "ip:1.2.3.4",
-		"a subject that is already one is left alone"
-	)
-	_check(
-		DotPunishmentSubject.for_uid("uid:alice") == "uid:alice"
-			and DotPunishmentSubject.for_uid("alice") == "uid:alice",
-		"and the same holds for a person"
-	)
-	_check(
-		not DotPunishmentSubject.is_bannable_address("127.0.0.1")
-			and not DotPunishmentSubject.is_bannable_address("::1"),
-		"loopback is not a bannable address",
-		"banning it locks the operator out of their own listen server"
-	)
-	_check(
-		not DotPunishmentSubject.is_bannable_address("unknown"),
-		"and neither is an address the transport could not report",
-		"that is every client at once"
-	)
+	_address_spelling()
 
 	var manager := _manager(DATA.path_join("address.json"))
 	await get_tree().process_frame
@@ -515,29 +485,7 @@ func _test_address_bans() -> void:
 	var loopback: DotResult = await manager.ban_address("127.0.0.1", "oops", "console")
 	_check(not loopback.ok, "loopback is refused rather than recorded")
 
-	# What dot-server calls. Everything above is unreachable from a server without it.
-	var refused: DotResult = manager.check_admission("", "203.0.113.9:51111")
-	_check(not refused.ok, "check_admission refuses the banned address")
-	_check(
-		not refused.ok and refused.error.message.to_lower().contains("banned"),
-		"with the message the player is shown",
-		"a player told nothing reconnects immediately"
-	)
-	_check(
-		manager.check_admission("uid:nobody", "198.51.100.1").ok,
-		"and admits everybody else"
-	)
-
-	await manager.ban_uid("backbone:evil", "cheating", "admin:sarah", 0, 0)
-	_check(
-		not manager.check_admission("backbone:evil", "198.51.100.1").ok,
-		"an account ban is refused from an unbanned address"
-	)
-	_check(
-		not manager.check_admission("uid:backbone:evil", "198.51.100.1").ok,
-		"and either spelling of the same person is refused",
-		"a deployment writing bare ids and one writing prefixed ids are both legal"
-	)
+	await _address_admission(manager)
 
 	# A kick is history, not a state, so it must never refuse a connection — which is
 	# the whole reason a kick and a ban are one record with a different kind.
@@ -581,3 +529,63 @@ func _test_address_bans() -> void:
 	manager.queue_free()
 	await get_tree().process_frame
 	_done()
+
+
+func _address_admission(manager: DotModerationManager) -> void:
+	# What dot-server calls. Everything above is unreachable from a server without it.
+	var refused: DotResult = manager.check_admission("", "203.0.113.9:51111")
+	_check(not refused.ok, "check_admission refuses the banned address")
+	_check(
+		not refused.ok and refused.error.message.to_lower().contains("banned"),
+		"with the message the player is shown",
+		"a player told nothing reconnects immediately"
+	)
+	_check(
+		manager.check_admission("uid:nobody", "198.51.100.1").ok,
+		"and admits everybody else"
+	)
+
+	await manager.ban_uid("backbone:evil", "cheating", "admin:sarah", 0, 0)
+	_check(
+		not manager.check_admission("backbone:evil", "198.51.100.1").ok,
+		"an account ban is refused from an unbanned address"
+	)
+	_check(
+		not manager.check_admission("uid:backbone:evil", "198.51.100.1").ok,
+		"and either spelling of the same person is refused",
+		"a deployment writing bare ids and one writing prefixed ids are both legal"
+	)
+
+
+func _address_spelling() -> void:
+	# How a subject is spelled decides whether the two ends ever meet. A ban filed
+	# against "1.2.3.4" and checked against what a transport actually reports —
+	# "1.2.3.4:51234" — is two strings and no error.
+	_check(
+		DotPunishmentSubject.for_address("1.2.3.4:51234") == "ip:1.2.3.4",
+		"the port is not part of the subject"
+	)
+	_check(
+		DotPunishmentSubject.for_address("[2001:db8::1]:9999") == "ip:2001:db8::1",
+		"nor is a bracketed IPv6 port"
+	)
+	_check(
+		DotPunishmentSubject.for_address("ip:1.2.3.4") == "ip:1.2.3.4",
+		"a subject that is already one is left alone"
+	)
+	_check(
+		DotPunishmentSubject.for_uid("uid:alice") == "uid:alice"
+			and DotPunishmentSubject.for_uid("alice") == "uid:alice",
+		"and the same holds for a person"
+	)
+	_check(
+		not DotPunishmentSubject.is_bannable_address("127.0.0.1")
+			and not DotPunishmentSubject.is_bannable_address("::1"),
+		"loopback is not a bannable address",
+		"banning it locks the operator out of their own listen server"
+	)
+	_check(
+		not DotPunishmentSubject.is_bannable_address("unknown"),
+		"and neither is an address the transport could not report",
+		"that is every client at once"
+	)

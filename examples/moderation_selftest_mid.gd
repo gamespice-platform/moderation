@@ -72,6 +72,16 @@ func _test_voice_actually_asks() -> void:
 	speak.call(1)
 	_check(delivered.size() == 2, "alice is heard (%d listeners)" % delivered.size())
 
+	await _voice_mute(manager, speak, delivered, router)
+
+	await _voice_reconnect(manager, peers, speak, delivered)
+
+	router.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+func _voice_mute(manager: DotModerationManager, speak: Callable, delivered: Array[int], router: Node) -> void:
 	# Now mute her through moderation, and nothing about the router changes.
 	var issued: DotResult = await manager.issue(
 		DotPunishment.Kind.VOICE_MUTE, "uid:alice", "mic spam", "admin:sarah", 600
@@ -91,6 +101,8 @@ func _test_voice_actually_asks() -> void:
 	speak.call(2)
 	_check(delivered.size() == 2, "bob is unaffected (%d)" % delivered.size())
 
+
+func _voice_reconnect(manager: DotModerationManager, peers: Dictionary, speak: Callable, delivered: Array[int]) -> void:
 	# The mute has to survive the thing every muted player tries.
 	manager.queue_free()
 	await get_tree().process_frame
@@ -112,6 +124,11 @@ func _test_voice_actually_asks() -> void:
 		"which is the entire point of the addon"
 	)
 
+	await _voice_unmapped(rejoined, speak, delivered)
+	rejoined.queue_free()
+
+
+func _voice_unmapped(rejoined: DotModerationManager, speak: Callable, delivered: Array[int]) -> void:
 	# And lifting it restores her, through the same seam.
 	await rejoined.revoke_all("uid:alice", DotPunishment.Kind.VOICE_MUTE, "admin:sarah")
 	delivered.clear()
@@ -143,12 +160,7 @@ func _test_voice_actually_asks() -> void:
 		"so describe_lines says so where an operator will see it",
 		"a mapping nobody set is a moderation system punishing the wrong people"
 	)
-
-	router.queue_free()
-	rejoined.queue_free()
 	unmapped.queue_free()
-	await get_tree().process_frame
-	_done()
 
 
 ## Whether dot-voice is linked into this project.
@@ -331,6 +343,35 @@ func _test_sql_store() -> void:
 			"a retry after a timeout must not produce two records for one ban"
 		)
 
+	await _sql_reads(driver, store, ban)
+
+	await _sql_edges()
+
+	_done()
+
+
+func _sql_edges() -> void:
+	# A database written by a newer build is refused, not read.
+	var newer := DotSqlDriverRecording.new(DotSqlDialect.Kind.SQLITE)
+	newer.answers = {"SELECT version FROM": [{"version": 99}]}
+	var refused: DotResult = await DotPunishmentStoreSql.new(newer).open()
+	_check(
+		not refused.ok,
+		"a database from a newer build is refused",
+		"columns that changed meaning underneath an old build are a ban that reads wrong"
+	)
+
+	# And the driver nobody has installed says so rather than failing later.
+	var missing := DotSqlDriverSqlite.new("user://never.db")
+	var available := missing.is_available()
+	_check(
+		not available.ok,
+		"the SQLite driver reports the extension is absent",
+		"rather than failing on the first write"
+	)
+
+
+func _sql_reads(driver: DotSqlDriverRecording, store: DotPunishmentStoreSql, ban: DotPunishment) -> void:
 	# Reading back, through the real row mapping.
 	driver.clear()
 	driver.rows = [DotPunishmentSchema.to_row(ban)]
@@ -382,26 +423,6 @@ func _test_sql_store() -> void:
 		not failed.ok,
 		"a read failure is reported rather than read as 'nobody is punished'"
 	)
-
-	# A database written by a newer build is refused, not read.
-	var newer := DotSqlDriverRecording.new(DotSqlDialect.Kind.SQLITE)
-	newer.answers = {"SELECT version FROM": [{"version": 99}]}
-	var refused: DotResult = await DotPunishmentStoreSql.new(newer).open()
-	_check(
-		not refused.ok,
-		"a database from a newer build is refused",
-		"columns that changed meaning underneath an old build are a ban that reads wrong"
-	)
-
-	# And the driver nobody has installed says so rather than failing later.
-	var missing := DotSqlDriverSqlite.new("user://never.db")
-	var available := missing.is_available()
-	_check(
-		not available.ok,
-		"the SQLite driver reports the extension is absent",
-		"rather than failing on the first write"
-	)
-	_done()
 
 
 func _test_rest_store() -> void:

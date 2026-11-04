@@ -122,6 +122,86 @@ func _test_mod_tools() -> void:
 	_check(brought.ok, "a player is brought", str(brought.error))
 	_check(places[&"uid:bob"] == Vector3(0, 0, 0), "to the moderator")
 
+	await _tools_goto_send(tools, places)
+
+	await _tools_2d()
+
+	await _tools_immunity(tools, places)
+
+	await _tools_unwired()
+
+	# The history is bounded, or a long-running server leaks a position per action.
+	tools.return_depth = 3
+	for i in range(10):
+		await tools.teleport(&"admin:senior", &"uid:bob", Vector3(i, 0, 0))
+	var depth := 0
+	while tools.can_return(&"uid:bob"):
+		await tools.return_player(&"admin:senior", &"uid:bob")
+		depth += 1
+		if depth > 20:
+			break
+	_check(depth == 3, "the return history is capped at its depth (%d)" % depth)
+
+	tools.forget(&"uid:bob")
+	_check(not tools.can_return(&"uid:bob"), "and a disconnect can clear it")
+
+	await _tools_recorded(tools, places)
+
+	tools.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+func _tools_unwired() -> void:
+	# Wiring that is not there refuses rather than half-working.
+	var unwired := DotModTools.new()
+	unwired.register_service = false
+	add_child(unwired)
+	await get_tree().process_frame
+	var nowhere: DotResult = await unwired.bring(&"a", &"b")
+	_check(not nowhere.ok, "with no callables set, every action refuses")
+	var lines := unwired.describe_lines()
+	var warned := false
+	for line in lines:
+		if line.contains("WARNING"):
+			warned = true
+	_check(warned, "and describe_lines says so where an operator will see it")
+	unwired.queue_free()
+
+
+func _tools_recorded(tools: DotModTools, places: Dictionary) -> void:
+	# Every action on the record, which is what makes "an admin moved me" answerable.
+	var manager := DotModerationManager.new()
+	manager.store = DotPunishmentStoreFile.new(DATA.path_join("tools.json"))
+	manager.register_mute_source = false
+	add_child(manager)
+	await get_tree().process_frame
+	await manager.load_all()
+
+	tools.manager = manager
+	tools.record_actions = true
+	places[&"uid:dave"] = Vector3(1, 1, 1)
+	await tools.bring(&"admin:senior", &"uid:dave")
+
+	var history := manager.history_for("uid:dave")
+	_check(history.size() == 1, "a teleport goes on the player's history (%d)" % history.size())
+	_check(
+		history.size() == 1 and history[0].kind == DotPunishment.Kind.WARN,
+		"as a warning, which enforces nothing",
+		"a teleport is not a punishment and must not read as one"
+	)
+	_check(
+		history.size() == 1 and not manager.is_banned_key("uid:dave"),
+		"so it punishes nobody"
+	)
+	_check(
+		history.size() == 1 and str(history[0].evidence.get("action", "")) == "bring",
+		"and records which action it was"
+	)
+	manager.queue_free()
+
+
+func _tools_goto_send(tools: DotModTools, places: Dictionary) -> void:
 	# Goto: the moderator goes to the player, and stops short.
 	places[&"uid:carol"] = Vector3(-50, 0, 0)
 	var went: DotResult = await tools.goto(&"admin:sarah", &"uid:carol")
@@ -165,24 +245,8 @@ func _test_mod_tools() -> void:
 		"and arrives near them"
 	)
 
-	# 2D is a first-class user of this, which is why positions are Variant.
-	var flat := {&"admin:sarah": Vector2(0, 0), &"uid:bob": Vector2(50, 50)}
-	var tools_2d := DotModTools.new()
-	tools_2d.register_service = false
-	tools_2d.record_actions = false
-	tools_2d.position_fn = func(id: StringName) -> Vector2:
-		return flat.get(id, Vector2.ZERO)
-	tools_2d.teleport_fn = func(id: StringName, to: Variant) -> void:
-		flat[id] = to
-	add_child(tools_2d)
-	await get_tree().process_frame
 
-	var flat_bring: DotResult = await tools_2d.bring(&"admin:sarah", &"uid:bob")
-	_check(flat_bring.ok, "the same tools work in 2D", str(flat_bring.error))
-	_check(flat[&"uid:bob"] == Vector2(0, 0), "and move a Vector2")
-	await tools_2d.return_player(&"admin:sarah", &"uid:bob")
-	_check(flat[&"uid:bob"] == Vector2(50, 50), "and return one")
-
+func _tools_immunity(tools: DotModTools, places: Dictionary) -> void:
 	# Immunity: a junior cannot move a senior.
 	var ranks := {&"admin:junior": 10, &"admin:senior": 90, &"uid:bob": 0}
 	tools.immunity_fn = func(id: StringName) -> int: return ranks.get(id, 0)
@@ -206,75 +270,33 @@ func _test_mod_tools() -> void:
 		"a moderator who cannot observe a senior cannot do their job"
 	)
 
-	# Wiring that is not there refuses rather than half-working.
-	var unwired := DotModTools.new()
-	unwired.register_service = false
-	add_child(unwired)
+
+func _tools_2d() -> void:
+	# 2D is a first-class user of this, which is why positions are Variant.
+	var flat := {&"admin:sarah": Vector2(0, 0), &"uid:bob": Vector2(50, 50)}
+	var tools_2d := DotModTools.new()
+	tools_2d.register_service = false
+	tools_2d.record_actions = false
+	tools_2d.position_fn = func(id: StringName) -> Vector2:
+		return flat.get(id, Vector2.ZERO)
+	tools_2d.teleport_fn = func(id: StringName, to: Variant) -> void:
+		flat[id] = to
+	add_child(tools_2d)
 	await get_tree().process_frame
-	var nowhere: DotResult = await unwired.bring(&"a", &"b")
-	_check(not nowhere.ok, "with no callables set, every action refuses")
-	var lines := unwired.describe_lines()
-	var warned := false
-	for line in lines:
-		if line.contains("WARNING"):
-			warned = true
-	_check(warned, "and describe_lines says so where an operator will see it")
 
-	# The history is bounded, or a long-running server leaks a position per action.
-	tools.return_depth = 3
-	for i in range(10):
-		await tools.teleport(&"admin:senior", &"uid:bob", Vector3(i, 0, 0))
-	var depth := 0
-	while tools.can_return(&"uid:bob"):
-		await tools.return_player(&"admin:senior", &"uid:bob")
-		depth += 1
-		if depth > 20:
-			break
-	_check(depth == 3, "the return history is capped at its depth (%d)" % depth)
-
-	tools.forget(&"uid:bob")
-	_check(not tools.can_return(&"uid:bob"), "and a disconnect can clear it")
-
-	# Every action on the record, which is what makes "an admin moved me" answerable.
-	var manager := DotModerationManager.new()
-	manager.store = DotPunishmentStoreFile.new(DATA.path_join("tools.json"))
-	manager.register_mute_source = false
-	add_child(manager)
-	await get_tree().process_frame
-	await manager.load_all()
-
-	tools.manager = manager
-	tools.record_actions = true
-	places[&"uid:dave"] = Vector3(1, 1, 1)
-	await tools.bring(&"admin:senior", &"uid:dave")
-
-	var history := manager.history_for("uid:dave")
-	_check(history.size() == 1, "a teleport goes on the player's history (%d)" % history.size())
-	_check(
-		history.size() == 1 and history[0].kind == DotPunishment.Kind.WARN,
-		"as a warning, which enforces nothing",
-		"a teleport is not a punishment and must not read as one"
-	)
-	_check(
-		history.size() == 1 and not manager.is_banned_key("uid:dave"),
-		"so it punishes nobody"
-	)
-	_check(
-		history.size() == 1 and str(history[0].evidence.get("action", "")) == "bring",
-		"and records which action it was"
-	)
-
-	tools.queue_free()
-	tools_2d.queue_free()
-	unwired.queue_free()
-	manager.queue_free()
-	await get_tree().process_frame
-	_done()
+	var flat_bring: DotResult = await tools_2d.bring(&"admin:sarah", &"uid:bob")
+	_check(flat_bring.ok, "the same tools work in 2D", str(flat_bring.error))
+	_check(flat[&"uid:bob"] == Vector2(0, 0), "and move a Vector2")
+	await tools_2d.return_player(&"admin:sarah", &"uid:bob")
+	_check(flat[&"uid:bob"] == Vector2(50, 50), "and return one")
 
 
 # --- The live admin set ----------------------------------------------------
 
 ## A game's handler table, recorded, so a check can ask what the game was told to do.
+	tools_2d.queue_free()
+
+
 class FakeWorld extends RefCounted:
 	var calls: Array = []
 	var fail_next := false
@@ -323,6 +345,60 @@ func _test_mod_abilities() -> void:
 	var tools := _abilities_tools(world, manager)
 	await get_tree().process_frame
 
+	await _abilities_refusals(tools, world)
+
+	var zero: DotResult = await tools.set_health(&"senior", &"bob", 0.0)
+	_check(not zero.ok and zero.error.code == DotError.CODE_INVALID,
+		"health 0 is refused rather than being a second way to slay")
+
+	var fast: DotResult = await tools.set_speed(&"senior", &"bob", 2.2)
+	_check(fast.ok and is_equal_approx(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED), 2.0),
+		"a multiplier is tracked as what the game applied, not what was typed",
+		str(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED)))
+
+	world.fail_next = true
+	var refused: DotResult = await tools.freeze(&"senior", &"carol")
+	_check(not refused.ok and not tools.is_active(&"carol", DotModTools.ACTION_FREEZE),
+		"a handler's refusal is passed back and nothing is tracked")
+
+	await _abilities_respawn(tools, world)
+
+	await _abilities_history(tools, manager)
+
+	var infinite: DotResult = await tools.slap(&"senior", &"carol", INF)
+	_check(not infinite.ok and infinite.error.code == DotError.CODE_INVALID,
+		"an infinite slap is refused, not a way round god")
+
+	tools.subject_fn = func(id: StringName) -> String: return "uid:%s" % String(id)
+	var _filed: DotResult = await tools.slap(&"senior", &"carol", 1.0)
+	tools.subject_fn = Callable()
+	_check(not manager.history_for("uid:carol").is_empty(),
+		"a record is filed against the person subject_fn names, not the session id")
+
+	var lines := tools.describe_lines()
+	var listed := false
+	var reasoned := false
+	for line in lines:
+		if line.begins_with("abilities") and line.contains("noclip") and line.contains("slay"):
+			listed = true
+		if line.begins_with("refused") and line.contains("give (There is nothing to give here.)"):
+			reasoned = true
+	_check(listed, "describe_lines lists what this game supports")
+	_check(reasoned, "and what it refuses, with the reason")
+
+	var _c: DotResult = await tools.freeze(&"senior", &"carol", true)
+	tools.release_after(&"carol", DotModTools.ACTION_FREEZE, 0.1)
+	await get_tree().create_timer(0.3).timeout
+	_check(not tools.is_active(&"carol", DotModTools.ACTION_FREEZE),
+		"a timed freeze lets go when its time is up")
+
+	tools.queue_free()
+	manager.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+func _abilities_refusals(tools: DotModTools, world: FakeWorld) -> void:
 	var give: DotResult = await tools.give(&"senior", &"bob", "rifle")
 	_check(
 		not give.ok and give.error.code == DotError.CODE_UNSUPPORTED
@@ -365,41 +441,8 @@ func _test_mod_abilities() -> void:
 	_check(console_on.ok, "a caller that states its own immunity is judged on it",
 		"the console is not a player immunity_fn has heard of")
 
-	var zero: DotResult = await tools.set_health(&"senior", &"bob", 0.0)
-	_check(not zero.ok and zero.error.code == DotError.CODE_INVALID,
-		"health 0 is refused rather than being a second way to slay")
 
-	var fast: DotResult = await tools.set_speed(&"senior", &"bob", 2.2)
-	_check(fast.ok and is_equal_approx(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED), 2.0),
-		"a multiplier is tracked as what the game applied, not what was typed",
-		str(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED)))
-
-	world.fail_next = true
-	var refused: DotResult = await tools.freeze(&"senior", &"carol")
-	_check(not refused.ok and not tools.is_active(&"carol", DotModTools.ACTION_FREEZE),
-		"a handler's refusal is passed back and nothing is tracked")
-
-	# A respawn: noclip and freeze are a body's and go with it; god outlives it.
-	var _a: DotResult = await tools.god(&"senior", &"bob", true)
-	var _b: DotResult = await tools.freeze(&"senior", &"bob", true)
-	world.calls.clear()
-	tools.respawned(&"bob")
-	var freeze_call := world.last(DotModTools.ACTION_FREEZE)
-	var god_call := world.last(DotModTools.ACTION_GOD)
-	var speed_call := world.last(DotModTools.ACTION_SPEED)
-	_check(freeze_call.size() == 3 and freeze_call[2]["on"] == false
-		and not tools.is_active(&"bob", DotModTools.ACTION_FREEZE),
-		"a respawn switches freeze off, through the handler, and stops tracking it")
-	_check(god_call.size() == 3 and god_call[2]["on"] == true
-		and tools.is_active(&"bob", DotModTools.ACTION_GOD),
-		"and re-applies god to the new body")
-	_check(speed_call.size() == 3 and is_equal_approx(float(speed_call[2]["scale"]), 1.0)
-		and is_equal_approx(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED), 1.0),
-		"and puts their speed back to normal")
-
-	tools.forget(&"bob")
-	_check(tools.active_on(&"bob").is_empty(), "leaving forgets every toggle they had")
-
+func _abilities_history(tools: DotModTools, manager: DotModerationManager) -> void:
 	var slapped: DotResult = await tools.slap(&"senior", &"carol", 25.0)
 	var history := manager.history_for("carol")
 	var recorded := false
@@ -421,37 +464,28 @@ func _test_mod_abilities() -> void:
 		"the evidence was set after the store had written the record")
 	reread.queue_free()
 
-	var infinite: DotResult = await tools.slap(&"senior", &"carol", INF)
-	_check(not infinite.ok and infinite.error.code == DotError.CODE_INVALID,
-		"an infinite slap is refused, not a way round god")
 
-	tools.subject_fn = func(id: StringName) -> String: return "uid:%s" % String(id)
-	var _filed: DotResult = await tools.slap(&"senior", &"carol", 1.0)
-	tools.subject_fn = Callable()
-	_check(not manager.history_for("uid:carol").is_empty(),
-		"a record is filed against the person subject_fn names, not the session id")
+func _abilities_respawn(tools: DotModTools, world: FakeWorld) -> void:
+	# A respawn: noclip and freeze are a body's and go with it; god outlives it.
+	var _a: DotResult = await tools.god(&"senior", &"bob", true)
+	var _b: DotResult = await tools.freeze(&"senior", &"bob", true)
+	world.calls.clear()
+	tools.respawned(&"bob")
+	var freeze_call := world.last(DotModTools.ACTION_FREEZE)
+	var god_call := world.last(DotModTools.ACTION_GOD)
+	var speed_call := world.last(DotModTools.ACTION_SPEED)
+	_check(freeze_call.size() == 3 and freeze_call[2]["on"] == false
+		and not tools.is_active(&"bob", DotModTools.ACTION_FREEZE),
+		"a respawn switches freeze off, through the handler, and stops tracking it")
+	_check(god_call.size() == 3 and god_call[2]["on"] == true
+		and tools.is_active(&"bob", DotModTools.ACTION_GOD),
+		"and re-applies god to the new body")
+	_check(speed_call.size() == 3 and is_equal_approx(float(speed_call[2]["scale"]), 1.0)
+		and is_equal_approx(tools.multiplier_of(&"bob", DotModTools.ACTION_SPEED), 1.0),
+		"and puts their speed back to normal")
 
-	var lines := tools.describe_lines()
-	var listed := false
-	var reasoned := false
-	for line in lines:
-		if line.begins_with("abilities") and line.contains("noclip") and line.contains("slay"):
-			listed = true
-		if line.begins_with("refused") and line.contains("give (There is nothing to give here.)"):
-			reasoned = true
-	_check(listed, "describe_lines lists what this game supports")
-	_check(reasoned, "and what it refuses, with the reason")
-
-	var _c: DotResult = await tools.freeze(&"senior", &"carol", true)
-	tools.release_after(&"carol", DotModTools.ACTION_FREEZE, 0.1)
-	await get_tree().create_timer(0.3).timeout
-	_check(not tools.is_active(&"carol", DotModTools.ACTION_FREEZE),
-		"a timed freeze lets go when its time is up")
-
-	tools.queue_free()
-	manager.queue_free()
-	await get_tree().process_frame
-	_done()
+	tools.forget(&"bob")
+	_check(tools.active_on(&"bob").is_empty(), "leaving forgets every toggle they had")
 
 
 # --- The commands, against a console that is not dot-server's --------------
@@ -624,6 +658,38 @@ func _test_mod_commands() -> void:
 	_check(" ".join(from_console.output).contains("no body"),
 		"the console with no target is told to name somebody")
 
+	await _commands_selectors(console, admin, world, commands)
+
+	await _commands_speed_blind(console, admin, tools, world)
+
+	await _commands_refusals(console, admin, world)
+
+	var _renamed := await _run_command(console, "rename Carol Not Rude", admin, 50)
+	_check(carol.display_name == "Not Rude", "a rename reaches the server's name for them too")
+
+	_check(not server.chat.announced.is_empty() and not server.audit.entries.is_empty(),
+		"actions are announced and audited")
+	var named := false
+	for pair: Array in server.chat.told:
+		if str(pair[1]).contains("Admin"):
+			named = true
+	_check(not server.chat.told.is_empty() and not named,
+		"the target is told, and never who did it")
+
+	var offered: PackedStringArray = console.commands["slay"].completer.call("", 0)
+	_check(offered.has("@all") and offered.has("Bob") and offered.has("@alive"),
+		"completion offers the selectors and the players", ", ".join(offered))
+
+	commands.unbind(console)
+	_check(not console.commands.has("slay") and console.commands.has("respawn"),
+		"unbind removes its own commands and leaves the game's")
+
+	tools.queue_free()
+	await get_tree().process_frame
+	_done()
+
+
+func _commands_selectors(console: FakeConsole, admin: FakeSession, world: FakeWorld, commands: DotModToolCommands) -> void:
 	var all := await _run_command(console, "slay @all", admin, 50)
 	var slain := 0
 	for c: Array in world.calls:
@@ -647,6 +713,30 @@ func _test_mod_commands() -> void:
 	_check(not frozen.has("3") and frozen.has("2"), "and uses the game's answer when it has one",
 		", ".join(frozen))
 
+
+func _commands_refusals(console: FakeConsole, admin: FakeSession, world: FakeWorld) -> void:
+	var give := await _run_command(console, "give Bob rifle", admin, 50)
+	_check(" ".join(give.output).contains("nothing to give"),
+		"an unsupported ability answers with the game's reason", " / ".join(give.output))
+
+	var protected := await _run_command(console, "slap Boss", admin, 50)
+	_check(" ".join(protected.output).contains("immunity"),
+		"a single protected target is refused by the server's own rule")
+
+	world.calls.clear()
+	var boost := await _run_command(console, "slap @me", admin, 50)
+	var self_slapped := false
+	for c: Array in world.calls:
+		if c[0] == DotModTools.ACTION_SLAP:
+			self_slapped = true
+	_check(not self_slapped and " ".join(boost.output).contains("needs the cheats flag"),
+		"slapping yourself — a shove where you want it — needs cheats", " / ".join(boost.output))
+	var as_root := await _run_command(console, "slap @me", admin, 50, true)
+	_check(not " ".join(as_root.output).contains("needs the cheats flag"),
+		"and somebody holding it may", " / ".join(as_root.output))
+
+
+func _commands_speed_blind(console: FakeConsole, admin: FakeSession, tools: DotModTools, world: FakeWorld) -> void:
 	var speed := await _run_command(console, "speed Bob 2.2", admin, 50)
 	_check(is_equal_approx(tools.multiplier_of(&"2", DotModTools.ACTION_SPEED), 2.0)
 		and " ".join(speed.output).contains("Bob"),
@@ -676,47 +766,3 @@ func _test_mod_commands() -> void:
 	_check(not tools.is_active(&"2", DotModTools.ACTION_BLIND)
 		and " ".join(nonsense.output).contains("number of seconds"),
 		"and anything else is refused, naming what it takes", " / ".join(nonsense.output))
-
-	var give := await _run_command(console, "give Bob rifle", admin, 50)
-	_check(" ".join(give.output).contains("nothing to give"),
-		"an unsupported ability answers with the game's reason", " / ".join(give.output))
-
-	var protected := await _run_command(console, "slap Boss", admin, 50)
-	_check(" ".join(protected.output).contains("immunity"),
-		"a single protected target is refused by the server's own rule")
-
-	world.calls.clear()
-	var boost := await _run_command(console, "slap @me", admin, 50)
-	var self_slapped := false
-	for c: Array in world.calls:
-		if c[0] == DotModTools.ACTION_SLAP:
-			self_slapped = true
-	_check(not self_slapped and " ".join(boost.output).contains("needs the cheats flag"),
-		"slapping yourself — a shove where you want it — needs cheats", " / ".join(boost.output))
-	var as_root := await _run_command(console, "slap @me", admin, 50, true)
-	_check(not " ".join(as_root.output).contains("needs the cheats flag"),
-		"and somebody holding it may", " / ".join(as_root.output))
-
-	var _renamed := await _run_command(console, "rename Carol Not Rude", admin, 50)
-	_check(carol.display_name == "Not Rude", "a rename reaches the server's name for them too")
-
-	_check(not server.chat.announced.is_empty() and not server.audit.entries.is_empty(),
-		"actions are announced and audited")
-	var named := false
-	for pair: Array in server.chat.told:
-		if str(pair[1]).contains("Admin"):
-			named = true
-	_check(not server.chat.told.is_empty() and not named,
-		"the target is told, and never who did it")
-
-	var offered: PackedStringArray = console.commands["slay"].completer.call("", 0)
-	_check(offered.has("@all") and offered.has("Bob") and offered.has("@alive"),
-		"completion offers the selectors and the players", ", ".join(offered))
-
-	commands.unbind(console)
-	_check(not console.commands.has("slay") and console.commands.has("respawn"),
-		"unbind removes its own commands and leaves the game's")
-
-	tools.queue_free()
-	await get_tree().process_frame
-	_done()
