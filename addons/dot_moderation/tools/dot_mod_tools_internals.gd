@@ -5,10 +5,7 @@ extends RefCounted
 ## Split out of the class so no file passes the size budget; it holds no state of its own.
 
 ## Why [param args] cannot be what [param action] means, or empty.
-##
-## Here rather than in each game's handler because every game would write the same four
-## lines, and the one that forgot would be the one where "health 0" slays somebody through
-## a command that is not supposed to.
+## Here, not in each game's handler: the game that forgot would let "health 0" slay.
 static func validate(action: StringName, args: Dictionary) -> String:
 	# Before any rule about one number: `1e999` is a valid float and is infinity, which
 	# made a timer that never fires and a slap that did infinite damage past god.
@@ -109,17 +106,12 @@ static func track(
 		t._multipliers[action] = entries
 		return
 
-	# A slay deliberately untracks nothing. The body keeps whatever the handlers put on it
-	# until the game respawns it, and respawned() is what switches those off through their
-	# handlers — untracking here would leave a frozen modifier on a body this record says
-	# is free, and the next respawn would carry it.
+	# A slay untracks nothing: respawned() switches the handlers' modifiers off, and
+	# untracking here would leave a frozen modifier the record says is free.
 
 
-## Puts the action on somebody's moderation history.
-##
-## As a WARN, because a warning is the kind that enforces nothing and exists to be read.
-## A teleport is not a punishment and must not read as one; what it needs is to be
-## answerable when a player asks why they moved.
+## Puts the action on somebody's history as a WARN: it enforces nothing and is there to be
+## read when a player asks why they moved.
 static func record(
 	t: DotModTools, subject: StringName, action: StringName, actor: StringName, target: StringName,
 	detail: Dictionary = {}

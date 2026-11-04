@@ -164,17 +164,11 @@ func _voice_unmapped(rejoined: DotModerationManager, speak: Callable, delivered:
 
 
 ## Whether dot-voice is linked into this project.
-##
-## The addon is optional here: dot-moderation depends on nothing but dot-core, and a
-## project can install it without any voice at all. Checked by loading a script by path
-## rather than by naming the class, because naming a `class_name` this project might not
-## have would make the whole suite fail to parse, and a scene that fails to parse HANGS
-## rather than failing.
+## Checked by path, not by class name: naming an absent `class_name` makes the suite fail
+## to parse, and a scene that fails to parse hangs.
 func _voice_is_present() -> bool:
 	return ResourceLoader.exists("res://addons/dot_voice/runtime/dot_voice_router.gd")
 
-
-# --- Storage backends ------------------------------------------------------
 
 func _test_schema() -> void:
 	_section("the punishment table, as a spec dot-sql renders")

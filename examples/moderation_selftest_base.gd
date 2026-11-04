@@ -11,8 +11,6 @@ var _failures := PackedStringArray()
 var _entered := 0
 var _completed := 0
 
-# --- Harness ---------------------------------------------------------------
-
 func _section(title: String) -> void:
 	_entered += 1
 	print("")
@@ -47,8 +45,6 @@ func _manager(path: String = "", scope: String = "") -> DotModerationManager:
 	add_child(manager)
 	return manager
 
-
-# --- Sections --------------------------------------------------------------
 
 func _test_record() -> void:
 	_section("a punishment is a record, not a flag")
@@ -448,18 +444,8 @@ func _test_scope() -> void:
 
 
 ## The join, run rather than assumed.
-##
-## [b]This is the section that would have caught every expensive bug in this family.[/b]
-## dot-voice's router calls `is_voice_muted(peer)` on whatever it finds in [DotRegistry]
-## under `dot_mute_source`. This manager publishes itself there and answers that method.
-## Neither addon imports the other, which is the family rule and is also exactly the
-## shape that has already produced: dot-map calling `ensure` on a client that only had
-## `acquire`, a leaderboard reporter sending its file format where the backbone expected
-## a schema, and four call sites all finding a null cloud client without one of them
-## erroring.
-##
-## Reading the two sides next to each other is cheaper than a socket and has found more
-## bugs here than any other technique. This runs them.
+## dot-voice's router calls `is_voice_muted(peer)` on whatever [DotRegistry] holds under
+## `dot_mute_source`; neither addon imports the other, so only running both halves proves it.
 func _test_address_bans() -> void:
 	_section("banning a machine rather than a person")
 
