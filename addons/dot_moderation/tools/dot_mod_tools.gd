@@ -78,13 +78,14 @@ const ACTION_GOTO := &"goto"
 const ACTION_SEND := &"send"
 const ACTION_RETURN := &"return"
 
-## The longest a timed action may run. A day: longer is a punishment, and punishments are
-## records with an expiry, not a timer on a live tool.
-const MAX_SECONDS := 86400.0
+## The longest a timed action may run; 0 = unlimited. Default a day: longer is a punishment,
+## and punishments are records with an expiry, not a timer on a live tool. A game raises or
+## lifts it by assigning this (from a cvar).
+static var max_seconds := 86400.0
 
-## The most a single slap may hurt. More is a slay, which has its own flag-checked path
-## and its own answer to god and buddha.
-const MAX_DAMAGE := 1000.0
+## The most a single slap may hurt; 0 = unlimited. Default 1000: more is a slay, which has
+## its own flag-checked path and its own answer to god and buddha.
+static var max_damage := 1000.0
 
 # The abilities a game supplies handlers for. Names, not an enum, so a game's own verb
 # ("launch", "shrink") is a first-class entry in the same table rather than a fork.
@@ -562,7 +563,8 @@ func release_after(target: StringName, action: StringName, seconds: float) -> vo
 	if seconds <= 0.0 or not is_finite(seconds) or not is_inside_tree():
 		return
 
-	seconds = minf(seconds, MAX_SECONDS)
+	if max_seconds > 0.0:
+		seconds = minf(seconds, max_seconds)
 
 	var entry: Variant = (_toggles.get(action, {}) as Dictionary).get(target)
 	var granted_at: int = int((entry as Dictionary).get("at", 0)) if entry is Dictionary else 0

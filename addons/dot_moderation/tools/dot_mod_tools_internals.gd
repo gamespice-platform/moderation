@@ -13,10 +13,10 @@ static func validate(action: StringName, args: Dictionary) -> String:
 		var value: Variant = args[key]
 		if (value is float or value is int) and not is_finite(float(value)):
 			return "That is not a number anybody can use."
-	if float(args.get("seconds", 0.0)) > DotModTools.MAX_SECONDS:
-		return "At most %d seconds." % int(DotModTools.MAX_SECONDS)
-	if float(args.get("damage", 0.0)) > DotModTools.MAX_DAMAGE:
-		return "At most %d damage; use slay to kill somebody." % int(DotModTools.MAX_DAMAGE)
+	if DotModTools.max_seconds > 0.0 and float(args.get("seconds", 0.0)) > DotModTools.max_seconds:
+		return "At most %d seconds." % int(DotModTools.max_seconds)
+	if DotModTools.max_damage > 0.0 and float(args.get("damage", 0.0)) > DotModTools.max_damage:
+		return "At most %d damage; use slay to kill somebody." % int(DotModTools.max_damage)
 
 	match action:
 		DotModTools.ACTION_HEALTH:
