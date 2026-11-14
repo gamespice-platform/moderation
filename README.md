@@ -105,7 +105,7 @@ Noclip, god, buddha, freeze, slay, slap, respawn, health, speed, gravity, give, 
 tools.handlers[DotModTools.ACTION_GOD] = func(id: StringName, args: Dictionary) -> DotResult:
     world.player(id).health.invulnerable = args["on"]
     return DotResult.success(args["on"])
-tools.unsupported_reasons[DotModTools.ACTION_NOCLIP] = "A 2D arena has no walls to pass through."
+tools.unsupported_reasons[DotModTools.ACTION_NOCLIP] = "A flat 2D game has no walls to pass through."
 ```
 
 The addon owns what is the same in every game: the immunity check (acting on yourself is always allowed), the audit record with what was done, who has which toggle on and who turned it on, switching a freeze or a noclip off when the player respawns while god and buddha carry over (`persist_on_respawn`), forgetting all of it when they leave, and a timed release (`release_after`). An ability with no handler is refused with `CODE_UNSUPPORTED` and the game's reason, and `describe_lines()` lists what this game supports and what it refuses.
