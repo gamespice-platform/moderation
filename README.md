@@ -4,7 +4,7 @@ Part of TMC's **Dot** collection: modular, MIT-licensed building blocks for game
 
 ## Install
 
-Copy `addons/dot_moderation/` and [dot-core](https://github.com/modcommunity/dot-core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [dot-server](https://github.com/modcommunity/dot-server) and [dot-voice](https://github.com/modcommunity/dot-voice) without importing either.
+Copy `addons/dot_moderation/` and [dot-core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [dot-server](https://github.com/gamespice-platform/server) and [dot-voice](https://github.com/gamespice-platform/voice) without importing either.
 
 ## Why it exists next to dot-server
 
@@ -34,7 +34,7 @@ Every backend holds the same table, defined in `DotPunishmentSchema`.
 | SQLite | `DotPunishmentStoreSql` + dot-sql `DotSqlDriverSqlite` | Needs the [godot-sqlite](https://github.com/2shady4u/godot-sqlite) extension. |
 | PostgreSQL, MySQL, MariaDB | `DotPunishmentStoreSql` + dot-sql `DotSqlDriverGateway` | Needs an HTTP gateway beside the database. dot-sql ships a reference one. |
 
-Godot cannot speak the Postgres or MySQL protocols itself, and a game server should not hold a database password anyway, so the drivers live in [dot-sql](https://github.com/modcommunity/dot-sql). dot-sql is optional. Statements are always parameterised.
+Godot cannot speak the Postgres or MySQL protocols itself, and a game server should not hold a database password anyway, so the drivers live in [dot-sql](https://github.com/gamespice-platform/sql). dot-sql is optional. Statements are always parameterised.
 
 REST contract:
 
