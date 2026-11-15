@@ -750,9 +750,9 @@ func _commands_speed_blind(console: FakeConsole, admin: FakeSession, tools: DotM
 	# A blind for a spell: a number of seconds in place of on|off, released by the tools'
 	# own timer, as a timed freeze is. `1` is still the switch word, not one second.
 	tools.handlers[DotModTools.ACTION_BLIND] = world.handler(DotModTools.ACTION_BLIND)
-	var _spell := await _run_command(console, "blind Bob 0.1", admin, 50)
+	var _spell := await _run_command(console, "blind Bob 0.5", admin, 50)
 	_check(tools.is_active(&"2", DotModTools.ACTION_BLIND), "blind takes a number of seconds")
-	await get_tree().create_timer(0.25).timeout
+	await get_tree().create_timer(0.9).timeout
 	_check(not tools.is_active(&"2", DotModTools.ACTION_BLIND)
 		and world.last(DotModTools.ACTION_BLIND).size() == 3
 		and world.last(DotModTools.ACTION_BLIND)[2]["on"] == false,
