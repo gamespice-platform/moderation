@@ -32,7 +32,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 ## Running and testing
 
 - The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), then `godot --headless --path . res://examples/moderation_selftest.tscn`. Without `addons/dot_voice` linked its last section fails loudly, on purpose.
-- Anything in the SQL store: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn` with `DOT_SQL_PG_DSN` and `DOT_SQL_MYSQL_DSN` set. [storage](docs/storage.md#testing)
+- Anything in the SQL store: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn` with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. [storage](docs/storage.md#testing)
 - A change to admission is not done until dot-server's `examples/dedicated_server.gd` still refuses a banned connection.
 
 ## Rules that bite

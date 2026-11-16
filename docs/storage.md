@@ -35,4 +35,4 @@ What the dialects still differ in, and why the spec is shaped the way it is: `id
 
 ## Testing
 
-`moderation_selftest` drives the SQL store against dot-sql's recording driver: which statements, which parameters, in which order, and the row mapping. `moderation_sql_live` runs the same store against real SQLite, Postgres and MySQL through dot-sql's reference gateway: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn`, with `DOT_SQL_PG_DSN` and `DOT_SQL_MYSQL_DSN` set. Both matter: the recording driver cannot see a dialect bug.
+`moderation_selftest` drives the SQL store against dot-sql's recording driver: which statements, which parameters, in which order, and the row mapping. `moderation_sql_live` runs the same store against real SQLite, Postgres and MySQL through dot-sql's reference gateway: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn`, with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. Both matter: the recording driver cannot see a dialect bug.
