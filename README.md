@@ -1,3 +1,5 @@
+[![dot-moderation - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/223-dot-moderation)
+
 Bans, kicks, chat gags, voice mutes and warnings as one durable record that survives a reconnect, with pluggable storage so several servers can share one list. Also the live tools a moderator uses on a player: teleporting, freezing, noclip and so on.
 
 Part of the [**Gamespice**](https://gamespice.net) collection: modular, MIT-licensed building blocks for games on the Gamespice platform (only the TMC website back end is closed). It was built with Claude Code and its headless suite passes, but little of it has met real players yet, so expect rough edges and please report what you find.
