@@ -1,4 +1,4 @@
-[![dot-moderation - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/223-dot-moderation)
+[![Moderation - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/223-dot-moderation)
 
 Bans, kicks, chat gags, voice mutes and warnings as one durable record that survives a reconnect, with pluggable storage so several servers can share one list. Also the live tools a moderator uses on a player: teleporting, freezing, noclip and so on.
 
@@ -8,7 +8,7 @@ Part of the [**GameSpice**](https://gamespice.net) collection: modular, MIT-lice
 
 Copy `addons/dot_moderation/` and [dot-core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [dot-server](https://github.com/gamespice-platform/server) and [dot-voice](https://github.com/gamespice-platform/voice) without importing either.
 
-## Why it exists next to dot-server
+## Why it exists next to Server
 
 dot-server already has bans, kicks, admin flags and an audit log. What it lacks is a mute that outlives a session: `DotClientSession.silence()` sets flags on a session object that dies on disconnect, so a muted player reconnects and can talk again. Here a mute is the same kind of record as a ban: stored, expiring, scoped and revocable. Use one ban system, not both.
 
