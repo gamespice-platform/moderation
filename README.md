@@ -1,4 +1,4 @@
-[![Moderation - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/223-dot-moderation)
+[![Moderation - GameSpice addon](docs/banner.png)](https://moddingcommunity.com/a/19-gs-moderation)
 
 Bans, kicks, chat gags, voice mutes and warnings as one durable record that survives a reconnect, with pluggable storage so several servers can share one list. Also the live tools a moderator uses on a player: teleporting, freezing, noclip and so on.
 
