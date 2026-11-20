@@ -2,7 +2,7 @@
 class_name DotPunishmentStoreSql
 extends DotPunishmentStore
 
-## Punishments in a real table, in whichever SQL a dot-sql driver speaks.
+## Punishments in a real table, in whichever SQL a GameSpice SQL driver speaks.
 ##
 ## [codeblock]
 ## var store := DotPunishmentStoreSql.new(DotSqlDriverSqlite.new("user://moderation.db"))
@@ -10,8 +10,8 @@ extends DotPunishmentStore
 ## [/codeblock]
 ##
 ## [b]The driver is duck-typed[/b] — held untyped and asked for `query`, `execute`,
-## `upsert_sql` and `migrate` — so dot-moderation does not depend on dot-sql and parses in
-## a project without it. Any object with those methods will do; dot-sql's are the ones that
+## `upsert_sql` and `migrate` — so GameSpice Moderation does not depend on GameSpice SQL and parses in
+## a project without it. Any object with those methods will do; GameSpice SQL's are the ones that
 ## exist. The table is [method DotPunishmentSchema.table_spec], rendered by the driver for
 ## its own dialect, so this class contains no `if postgres` anywhere.
 ##
@@ -20,7 +20,7 @@ extends DotPunishmentStore
 ## must never reach SQL by concatenation. Nothing here builds a WHERE clause out of a
 ## value.
 
-## Where statements go: a dot-sql driver, or anything shaped like one.
+## Where statements go: a GameSpice SQL driver, or anything shaped like one.
 var driver = null
 
 ## Table name, in case an operator already owns `punishments`.

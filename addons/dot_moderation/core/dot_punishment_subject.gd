@@ -5,7 +5,7 @@ extends RefCounted
 ## How a [DotPunishment]'s subject is spelled, so two servers spell it the same way.
 ##
 ## [b]A subject is an opaque string and that is the problem this solves.[/b] Opaque is
-## right — a deployment keys punishments on dot-user's pseudonymous id, an account uid or
+## right — a deployment keys punishments on GameSpice User's pseudonymous id, an account uid or
 ## a device id, and this addon must not care which — but "opaque" and "however each caller
 ## felt like writing it" are not the same thing. A ban filed against
 ## [code]1.2.3.4[/code] and a check for [code]ip:1.2.3.4:51234[/code] are two strings that
@@ -31,7 +31,7 @@ const PREFIX_IP := "ip:"
 ##
 ## Banning loopback locks the operator out of their own listen server and is almost always
 ## a mistyped argument — the same refusal [method DotBanManager.ban_address] makes in
-## dot-server, for the same reason.
+## GameSpice Server, for the same reason.
 const NEVER_BANNABLE := ["127.0.0.1", "::1", "localhost"]
 
 

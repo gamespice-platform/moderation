@@ -10,7 +10,7 @@ extends Node
 ##
 ## Serving from GDScript rather than shelling out keeps the suite self-contained: no
 ## Python, no Docker, nothing to install, and it runs headless anywhere the engine runs.
-## Same reasoning as dot-cloud's static file server, which is where this pattern comes
+## Same reasoning as GameSpice Cloud's static file server, which is where this pattern comes
 ## from.
 ##
 ## It is deliberately not production code and does not live in `addons/`. It speaks

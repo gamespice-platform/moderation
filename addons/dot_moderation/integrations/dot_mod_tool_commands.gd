@@ -1,7 +1,7 @@
 class_name DotModToolCommands
 extends RefCounted
 
-## The live tools as console and chat commands, on a dot-server, in one call.
+## The live tools as console and chat commands, on a GameSpice Server, in one call.
 ##
 ## [codeblock]
 ## # from a DotModule's _module_load, or anything holding the server:
@@ -14,8 +14,8 @@ extends RefCounted
 ## them on unload) or [code]command[/code] (a [code]DotConsole[/code]); the server is
 ## anything with [code]resolve_target[/code], [code]find_sessions[/code] and
 ## [code]playing_sessions[/code]; a command context is anything with [code]args[/code],
-## [code]session[/code] and [code]reply[/code]. So this file names no dot-server class and
-## dot-moderation stays installable without it — which is the rule this addon has kept since
+## [code]session[/code] and [code]reply[/code]. So this file names no GameSpice Server class and
+## GameSpice Moderation stays installable without it — which is the rule this addon has kept since
 ## it was written, and the reason [code]dot_ban_source[/code] exists.
 ##
 ## [b]Targets go through the server, not through a second parser.[/b] A single player is
@@ -28,7 +28,7 @@ extends RefCounted
 ##
 ## [b]A bare command acts on the caller.[/b] [code]!noclip[/code] with no name is how every
 ## admin has typed it for twenty years, so an empty target and [code]@me[/code] are the
-## caller — and acting on yourself is never refused for immunity, which dot-server's own
+## caller — and acting on yourself is never refused for immunity, which GameSpice Server's own
 ## [code]resolve_target[/code] would do, because everybody has equal immunity to themselves.
 ##
 ## [b]Every command is registered whether or not this game supports it.[/b] A
@@ -39,7 +39,7 @@ extends RefCounted
 const CHANNEL := "moderation.commands"
 
 ## The permission names this file hands the console. Spelled out rather than read off
-## dot-server's `DotAdminFlags`, which this addon may not name; the strings are the same.
+## GameSpice Server's `DotAdminFlags`, which this addon may not name; the strings are the same.
 const FLAG_CHEATS := "cheats"
 const FLAG_SLAY := "slay"
 const FLAG_TELEPORT := "teleport"
@@ -138,7 +138,7 @@ var skip: PackedStringArray = PackedStringArray()
 
 ## Announce each action to the server, without naming who did it. Visible moderation is a
 ## deterrent; the moderator's name is not information a player needs to appeal, and it is
-## how a moderator gets harassed — the same rule dot-moderation's player message keeps.
+## how a moderator gets harassed — the same rule GameSpice Moderation's player message keeps.
 var announce: bool = true
 
 ## Tell the target, privately, what was done to them. Also without the moderator's name.
@@ -643,7 +643,7 @@ func _targets(ctx: Object, text: String) -> DotResult:
 	return DotResult.success({"sessions": [one.value], "skipped": 0})
 
 
-## One player, by any form dot-server understands, immunity checked the way kick checks it.
+## One player, by any form GameSpice Server understands, immunity checked the way kick checks it.
 func _single(ctx: Object, text: String) -> DotResult:
 	var caller: Variant = ctx.get("session")
 
@@ -749,7 +749,7 @@ func _actor_id(ctx: Object) -> StringName:
 
 
 ## The caller's immunity as the console knows it. Root, and the local console, outrank
-## everybody; dot-server's `outranks` says the same thing about the same context.
+## everybody; GameSpice Server's `outranks` says the same thing about the same context.
 func _actor_immunity(ctx: Object) -> int:
 	if ctx.has_method("has_permission") and bool(ctx.call("has_permission", "root")):
 		return 100

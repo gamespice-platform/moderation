@@ -14,8 +14,8 @@ extends Node
 ## mod.is_voice_muted_key("uid:1234")   # true, and still true after they reconnect
 ## [/codeblock]
 ##
-## [b]The reason this exists next to dot-server's ban manager, which already bans.[/b]
-## dot-server's bans are durable and its mutes are not: `DotClientSession.silence()` sets
+## [b]The reason this exists next to GameSpice Server's ban manager, which already bans.[/b]
+## GameSpice Server's bans are durable and its mutes are not: `DotClientSession.silence()` sets
 ## two booleans on a session object, and a session is destroyed when its player
 ## disconnects. So a muted player reconnects and can talk, which is the first thing
 ## anybody who has been muted tries, and it is the most common complaint on any community
@@ -23,7 +23,7 @@ extends Node
 ## state happened to live.
 ##
 ## Here a mute is the same kind of record a ban is: stored, expiring, scoped, revocable
-## and on the player's history. dot-server keeps its own ban list and nothing about it
+## and on the player's history. GameSpice Server keeps its own ban list and nothing about it
 ## changes; this is what a deployment adds when it wants a mute to mean something.
 ##
 ## [b]It publishes itself as [code]dot_mute_source[/code][/b], which is the name
@@ -33,12 +33,12 @@ extends Node
 const CHANNEL := "moderation"
 const SERVICE := &"dot_moderation"
 
-## The registry name dot-voice's router asks for. Answering it is the integration.
+## The registry name GameSpice Voice's router asks for. Answering it is the integration.
 const MUTE_SERVICE := &"dot_mute_source"
 
-## The registry name dot-server's admission check looks for.
+## The registry name GameSpice Server's admission check looks for.
 ##
-## Same shape as [constant MUTE_SERVICE] and for the same reason: dot-server asks whether
+## Same shape as [constant MUTE_SERVICE] and for the same reason: GameSpice Server asks whether
 ## a connecting client may be admitted, this answers, and neither addon names the other.
 ## What is registered here answers
 ## [code]check_admission(uid: String, address: String) -> DotResult[/code].
@@ -81,15 +81,15 @@ signal expired(punishment: DotPunishment)
 
 @export_group("Service")
 
-## Publish under [constant MUTE_SERVICE] so dot-voice finds this without importing it.
+## Publish under [constant MUTE_SERVICE] so GameSpice Voice finds this without importing it.
 @export var register_mute_source: bool = true
 
-## Publish under [constant BAN_SERVICE] so dot-server enforces these bans at connect.
+## Publish under [constant BAN_SERVICE] so GameSpice Server enforces these bans at connect.
 ##
 ## [b]On by default, and it is the difference between a ban and a note about one.[/b]
 ## Nothing in this addon can refuse a connection — there is no session list here and no
 ## socket — so a [constant DotPunishment.Kind.BAN] recorded with nobody registered is a
-## row in a file that stops nothing. A deployment keeping its bans in dot-server's own
+## row in a file that stops nothing. A deployment keeping its bans in GameSpice Server's own
 ## [code]DotBanManager[/code] instead should turn this off rather than run two lists.
 @export var register_ban_source: bool = true
 
@@ -98,11 +98,11 @@ var store: DotPunishmentStore = null
 
 ## Turns a transport peer id into the durable key a punishment is against.
 ##
-## [b]This is the seam, and getting it wrong is silent.[/b] dot-voice's router asks
+## [b]This is the seam, and getting it wrong is silent.[/b] GameSpice Voice's router asks
 ## `is_voice_muted(peer)` because a peer id is all a transport knows. A punishment is
 ## against a durable subject, because a peer id is reused within minutes and means
 ## nothing after a disconnect. Something has to map one to the other and only the host
-## knows how: it is dot-user's pseudonymous id on one deployment, an account uid on
+## knows how: it is GameSpice User's pseudonymous id on one deployment, an account uid on
 ## another, a device id for a guest on a third.
 ##
 ## Left unset, the mapping is `str(peer)`, which is [b]correct only for a single-process
@@ -474,16 +474,16 @@ func is_banned_address(address: String) -> bool:
 	return subject != "" and is_banned_key(subject)
 
 
-# --- What dot-voice and dot-server call ------------------------------------
+# --- What GameSpice Voice and GameSpice Server call ------------------------------------
 
 ## Whether somebody connecting as [param uid] from [param address] may be admitted.
 ##
-## [b]The method dot-server calls on whatever is registered as
+## [b]The method GameSpice Server calls on whatever is registered as
 ## [code]dot_ban_source[/code][/b], and the only way a ban recorded here stops anybody:
 ## this addon has no session list and no socket, so a ban it enforces itself is a ban
 ## nobody is refused by.
 ##
-## Either argument may be empty. dot-server asks twice — once on the address before a
+## Either argument may be empty. GameSpice Server asks twice — once on the address before a
 ## client has said who it is, and again with both once it has — because a ban that is only
 ## checked after authentication admits the connection, runs the whole handshake and then
 ## drops it, and an address ban exists precisely to avoid doing that work.

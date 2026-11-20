@@ -1,7 +1,7 @@
 @tool
 extends EditorPlugin
 
-## Editor entry point for dot-moderation. Registers inspector types only.
+## Editor entry point for GameSpice Moderation. Registers inspector types only.
 ##
 ## No autoloads. A moderation manager is a tempting singleton and it is the wrong shape
 ## for the same reason everything else here is: a test that runs two servers in one

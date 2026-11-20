@@ -16,7 +16,7 @@ It knows nothing about the world: `position_fn` and `teleport_fn` are the host's
 
 ## The rest of the admin set is a handler table
 
-`DotModTools.handlers` is one `Callable` per ability (noclip, god, buddha, freeze, slay, slap, respawn, health, speed, gravity, give, strip, rename, burn, blind, beacon), and a game fills in the ones that mean something in it. **Everything that is the same in every game is here; only the verb is the game's.** That is why the addon can still depend on dot-core alone: god mode is `invulnerable` on a `DotHealth` in one game, a flag on a monster in another, and nothing at all in a lobby.
+`DotModTools.handlers` is one `Callable` per ability (noclip, god, buddha, freeze, slay, slap, respawn, health, speed, gravity, give, strip, rename, burn, blind, beacon), and a game fills in the ones that mean something in it. **Everything that is the same in every game is here; only the verb is the game's.** That is why the addon can still depend on GameSpice Core alone: god mode is `invulnerable` on a `DotHealth` in one game, a flag on a monster in another, and nothing at all in a lobby.
 
 - **An ability with no handler is refused, loudly, with the game's reason.** `unsupported_reasons` exists because "not supported" is an answer and "a 2D arena has no walls to pass through" is an explanation, and a command that exists and silently does nothing is the one an admin files a bug about. `describe_lines()` lists both halves.
 - **Toggles are tracked here, with who turned them on.** A game knows a modifier is on; it cannot say that the senior admin put it there, which is the question a second moderator asks before undoing it.
@@ -26,13 +26,13 @@ It knows nothing about the world: `position_fn` and `teleport_fn` are the host's
 - **`blind` takes a number of seconds where the other toggles take only on|off** (`TIMED_TOGGLES`), because a blind is a spell rather than a state and freeze already worked that way. Only where the target is required: `noclip 5` means the player called 5. The switch words are read first, so `blind bob 1` holds until lifted rather than for one second.
 - **A timed release checks it is still the same grant.** A ten-second freeze, lifted at five and re-applied indefinitely at six, must not be ended by the first timer; each grant carries a serial.
 
-## The commands, and why they are here rather than in dot-server
+## The commands, and why they are here rather than in GameSpice Server
 
-`DotModToolCommands` registers them on any console-shaped host, duck-typed in the shape `DotVoteCommands` set, so this addon names no dot-server class. They cannot live in dot-server because dot-server does not know what a noclip is; they cannot be a game's because every game would write the same target parsing, and the one that got `@all` wrong would noclip a senior admin.
+`DotModToolCommands` registers them on any console-shaped host, duck-typed in the shape `DotVoteCommands` set, so this addon names no GameSpice Server class. They cannot live in GameSpice Server because GameSpice Server does not know what a noclip is; they cannot be a game's because every game would write the same target parsing, and the one that got `@all` wrong would noclip a senior admin.
 
 - **One player is the server's `resolve_target`**, the function `kick` uses: the same name forms, the same refusal of an ambiguous name, the same immunity rule. Added here only what the server cannot know: `@all`, `@others`, and `@alive`, `@dead` and `@team:` when the game supplies `alive_fn` and `team_fn`. A protected player is **skipped from a group and counted in the reply**, because `@all` on a server with one senior admin should not do nothing to everybody else.
 - **A bare command is the caller**, and naming yourself is checked before `resolve_target`, which would refuse it for equal immunity.
 - **A name somebody already has is not registered.** A console handed a duplicate returns the existing command, and a module then unregisters it on unload: someone else's command, gone. A game's own `respawn` wins, and the collision is logged.
 - **Every command exists whether or not the game supports it**, so `!noclip` in a lobby answers with the lobby's reason rather than "unknown command".
 - **Nothing a player is told names the moderator.**
-- **Three flags**: `slay` for handling a person, `cheats` for changing the game, `teleport` for moving people. dot-server's `DotAdminFlags` names the first and last so a group file can grant them without an "unknown flag" warning.
+- **Three flags**: `slay` for handling a person, `cheats` for changing the game, `teleport` for moving people. GameSpice Server's `DotAdminFlags` names the first and last so a group file can grant them without an "unknown flag" warning.

@@ -1,12 +1,12 @@
 # Punishments as records
 
-## Why this exists next to dot-server, which already bans
+## Why this exists next to GameSpice Server, which already bans
 
-dot-server has bans, kicks, admin flags with immunity and an audit log, and none of that changes. What it does not have is a **mute that outlives a session**: `DotClientSession.muted`, `gagged` and `mute_expires_at` live on a session that is destroyed when its player disconnects, so a muted player reconnects and can talk. That is the first thing anybody who has been muted tries, and the most common complaint on any community server.
+GameSpice Server has bans, kicks, admin flags with immunity and an audit log, and none of that changes. What it does not have is a **mute that outlives a session**: `DotClientSession.muted`, `gagged` and `mute_expires_at` live on a session that is destroyed when its player disconnects, so a muted player reconnects and can talk. That is the first thing anybody who has been muted tries, and the most common complaint on any community server.
 
 **Bans persisting and mutes not is not a design.** It is an accident of where the state happened to live. Here a mute is the same kind of record a ban is: stored, expiring, scoped, revocable, and on the player's history.
 
-There is a **deliberate overlap**: this does bans too, for a project not using dot-server. A deployment should pick one list rather than run both, and the README says so.
+There is a **deliberate overlap**: this does bans too, for a project not using GameSpice Server. A deployment should pick one list rather than run both, and the README says so.
 
 ## A punishment is a record, not a flag
 
@@ -27,7 +27,7 @@ A punishment that has expired but not yet been noticed is indistinguishable from
 
 A peer id is reused within minutes and means nothing after a disconnect, so a punishment keyed on one is a punishment against whoever connects next.
 
-`DotModerationManager.key_for_peer` is where a deployment's identity model plugs in: dot-user's pseudonymous id, an account uid, a device id for a guest. **Left unset the mapping is `str(peer)`, which is correct for a single-process test and wrong on a real server in a way that enforces nothing and reports nothing.** It warns once on the first lookup and again in `describe_lines()`, because that is where an operator looks.
+`DotModerationManager.key_for_peer` is where a deployment's identity model plugs in: GameSpice User's pseudonymous id, an account uid, a device id for a guest. **Left unset the mapping is `str(peer)`, which is correct for a single-process test and wrong on a real server in a way that enforces nothing and reports nothing.** It warns once on the first lookup and again in `describe_lines()`, because that is where an operator looks.
 
 ## An address is a subject too, and how it is spelled is the whole trick
 
@@ -41,12 +41,12 @@ Loopback is refused, as is an address the transport could not report. Both are a
 
 **Nothing in this addon can refuse a connection.** There is no session list here and no socket. So a `BAN` recorded with nothing asking about it is a row in a file, and the moderator who issued it has no way to tell the difference.
 
-So the manager registers under `dot_ban_source` (`register_ban_source`, on by default) and answers `check_admission(uid: String, address: String) -> DotResult`. dot-server calls it twice per join: on the address before the client has said who it is, and on both once it has. dot-server's `examples/dedicated_server.gd` loads this addon by path, registers it, and asserts a real `DotServer` refuses a real connection.
+So the manager registers under `dot_ban_source` (`register_ban_source`, on by default) and answers `check_admission(uid: String, address: String) -> DotResult`. GameSpice Server calls it twice per join: on the address before the client has said who it is, and on both once it has. GameSpice Server's `examples/dedicated_server.gd` loads this addon by path, registers it, and asserts a real `DotServer` refuses a real connection.
 
 - **Both spellings of a person are checked.** `check_admission("backbone:evil", …)` and `check_admission("uid:backbone:evil", …)` both refuse, because this addon cannot know which convention a deployment writes, and checking one spelling enforces nothing for the other, silently.
 - **`describe_lines()` warns when bans are in force and nothing is registered.** The likeliest misconfiguration is the one where every part is correct and nobody is asking.
 
-## The join with dot-voice, and why it is tested
+## The join with GameSpice Voice, and why it is tested
 
 `DotModerationManager` publishes itself in `DotRegistry` under `dot_mute_source` and answers `is_voice_muted(peer)`. `DotVoiceRouter` looks that name up and calls that method. Neither addon imports the other, and a project with only one of them works.
 
@@ -64,8 +64,8 @@ Immunity is about who may be **acted on**, not only who may act, and the second 
 
 ## Deliberately not here
 
-- **Console commands for punishments.** `mute`, `gag` and `ban` belong to dot-server's console, which has permission checking, chat triggers, player targeting and an audit trail. This is the record behind them, and `dot_ban_source` is how the two halves meet. The live tools are the one exception ([mod-tools.md](mod-tools.md)): dot-server cannot know what they mean.
-- **A per-address connection limit.** Admission belongs where the sessions are: `sv_max_connections_per_ip` and `DotAddressGuard`, in dot-server.
+- **Console commands for punishments.** `mute`, `gag` and `ban` belong to GameSpice Server's console, which has permission checking, chat triggers, player targeting and an audit trail. This is the record behind them, and `dot_ban_source` is how the two halves meet. The live tools are the one exception ([mod-tools.md](mod-tools.md)): GameSpice Server cannot know what they mean.
+- **A per-address connection limit.** Admission belongs where the sessions are: `sv_max_connections_per_ip` and `DotAddressGuard`, in GameSpice Server.
 - **Kicking anybody.** No session list, no socket. It records that a kick happened.
 - **An appeals workflow.** `evidence` holds a ticket number; the workflow is a website.
-- **Chat filtering.** dot-server sanitises chat already, and a word list is a policy rather than a mechanism.
+- **Chat filtering.** GameSpice Server sanitises chat already, and a word list is a policy rather than a mechanism.

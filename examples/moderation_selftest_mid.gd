@@ -163,7 +163,7 @@ func _voice_unmapped(rejoined: DotModerationManager, speak: Callable, delivered:
 	unmapped.queue_free()
 
 
-## Whether dot-voice is linked into this project.
+## Whether GameSpice Voice is linked into this project.
 ## Checked by path, not by class name: naming an absent `class_name` makes the suite fail
 ## to parse, and a scene that fails to parse hangs.
 func _voice_is_present() -> bool:
@@ -173,7 +173,7 @@ func _voice_is_present() -> bool:
 func _test_schema() -> void:
 	_section("the punishment table, as a spec dot-sql renders")
 
-	# The spec, not the DDL: rendering it per dialect is dot-sql's job and is tested
+	# The spec, not the DDL: rendering it per dialect is GameSpice SQL's job and is tested
 	# there, against real SQLite, Postgres and MySQL. What this addon owns is which
 	# columns exist, which are keys, and which are indexed.
 	var spec := DotPunishmentSchema.table_spec()
@@ -284,7 +284,7 @@ func _test_sql_store() -> void:
 
 	# The store's job is to send the right statements, bind values in the right order
 	# and map rows back. None of that needs a real engine; examples/moderation_sql_live
-	# runs the same store against real databases through dot-sql's gateway.
+	# runs the same store against real databases through GameSpice SQL's gateway.
 	var driver := DotSqlDriverRecording.new(DotSqlDialect.Kind.POSTGRES)
 	driver.answers = {"SELECT version FROM": []}
 	var store := DotPunishmentStoreSql.new(driver)

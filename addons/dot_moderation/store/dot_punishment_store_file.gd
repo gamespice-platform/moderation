@@ -58,7 +58,7 @@ func load_all() -> DotResult:
 	if not (parsed is Dictionary):
 		# [b]Loud, and the caller keeps what it has.[/b] Silently meaning "nobody is
 		# punished" turns a typo into an unmoderated server, which is the same reasoning
-		# dot-server's admin file uses.
+		# GameSpice Server's admin file uses.
 		return DotResult.fail(
 			DotError.CODE_INVALID,
 			"The moderation file is not a JSON object.",
@@ -90,7 +90,7 @@ func load_all() -> DotResult:
 			var valid := punishment.validate()
 
 			if not valid.ok:
-				# One bad entry does not condemn the file, for the same reason dot-map's
+				# One bad entry does not condemn the file, for the same reason GameSpice Map's
 				# catalogue tolerates one: a server with nine hundred good records and
 				# one typo should moderate with the nine hundred and say which one it
 				# dropped.

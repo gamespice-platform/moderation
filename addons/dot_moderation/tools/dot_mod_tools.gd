@@ -19,10 +19,10 @@ extends Node
 ## [/codeblock]
 ##
 ## [b]It knows nothing about your world, and it cannot.[/b] This addon depends only on
-## dot-core, so it has no scene, no player list, no idea whether the game is 2D or 3D and
+## GameSpice Core, so it has no scene, no player list, no idea whether the game is 2D or 3D and
 ## no way to move anything. Positions come from [member position_fn] and moves go through
 ## [member teleport_fn], both supplied by the host. That is the same shape
-## [DotVoiceRouter] uses for teams and positions, and the reason dot-timer can serve a 3D
+## [DotVoiceRouter] uses for teams and positions, and the reason GameSpice Timer can serve a 3D
 ## surf map and a 2D course from one implementation.
 ##
 ## Positions are [Variant] rather than [Vector3] for exactly that reason: a

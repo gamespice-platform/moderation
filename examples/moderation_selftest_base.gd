@@ -444,7 +444,7 @@ func _test_scope() -> void:
 
 
 ## The join, run rather than assumed.
-## dot-voice's router calls `is_voice_muted(peer)` on whatever [DotRegistry] holds under
+## GameSpice Voice's router calls `is_voice_muted(peer)` on whatever [DotRegistry] holds under
 ## `dot_mute_source`; neither addon imports the other, so only running both halves proves it.
 func _test_address_bans() -> void:
 	_section("banning a machine rather than a person")
@@ -518,7 +518,7 @@ func _test_address_bans() -> void:
 
 
 func _address_admission(manager: DotModerationManager) -> void:
-	# What dot-server calls. Everything above is unreachable from a server without it.
+	# What GameSpice Server calls. Everything above is unreachable from a server without it.
 	var refused: DotResult = manager.check_admission("", "203.0.113.9:51111")
 	_check(not refused.ok, "check_admission refuses the banned address")
 	_check(

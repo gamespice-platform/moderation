@@ -13,7 +13,7 @@ extends "res://examples/moderation_selftest_mid.gd"
 ## this family. The last one connects a real [DotVoiceRouter] to a real
 ## [DotModerationManager] through the registry and asks whether a muted player is actually
 ## silenced, because "the two ends have never met" is how every expensive bug here has
-## started: dot-map calling `ensure` on a client that offered `acquire`, the leaderboard
+## started: GameSpice Map calling `ensure` on a client that offered `acquire`, the leaderboard
 ## reporter sending its file format as the wire, four call sites all finding a null cloud
 ## client and none of them erroring.
 
@@ -488,7 +488,7 @@ func _abilities_respawn(tools: DotModTools, world: FakeWorld) -> void:
 	_check(tools.active_on(&"bob").is_empty(), "leaving forgets every toggle they had")
 
 
-# --- The commands, against a console that is not dot-server's --------------
+# --- The commands, against a console that is not GameSpice Server's --------------
 
 class FakeSession extends RefCounted:
 	var userid := 0

@@ -10,20 +10,20 @@ extends RefCounted
 ## backend is a schema that disagrees with itself within a month, and the way you find out
 ## is a ban that reads back with no expiry.
 ##
-## [b]The table is plain data, rendered by dot-sql.[/b] [method table_spec] is a
-## [Dictionary] a dot-sql driver turns into DDL for its own dialect
+## [b]The table is plain data, rendered by GameSpice SQL.[/b] [method table_spec] is a
+## [Dictionary] a GameSpice SQL driver turns into DDL for its own dialect
 ## ([code]driver.ensure_table(spec)[/code]), which is where MySQL's refusal to index TEXT,
 ## its lack of [code]CREATE INDEX IF NOT EXISTS[/code] and its reserved words are handled
-## once for every addon. This file names no dot-sql class, so dot-moderation still parses
+## once for every addon. This file names no GameSpice SQL class, so GameSpice Moderation still parses
 ## in a project without it; only [DotPunishmentStoreSql] needs a driver at all.
 ##
-## [b]Placeholders are [code]?[/code] in every dialect[/b] — dot-sql's contract. A driver
+## [b]Placeholders are [code]?[/code] in every dialect[/b] — GameSpice SQL's contract. A driver
 ## that speaks to Postgres natively numbers them itself at the last moment.
 
 ## Table name. Overridable per store, because an operator may already own `punishments`.
 const DEFAULT_TABLE := "dot_punishments"
 
-## The component name the table's schema version is recorded under, in dot-sql's
+## The component name the table's schema version is recorded under, in GameSpice SQL's
 ## migration table. Bumped by adding a step to [method migration_steps], never by editing
 ## one: a database at version 1 must be brought to 2 by what 2 adds.
 const MIGRATION_COMPONENT := "dot_moderation"
@@ -47,7 +47,7 @@ const COLUMNS := [
 ]
 
 
-## The table, as a dot-sql table spec.
+## The table, as a GameSpice SQL table spec.
 ##
 ## - [b]`id`, `subject` and `scope` are `key`[/b] (VARCHAR on MySQL): all three are
 ##   indexed, and MySQL cannot index TEXT without a prefix length.
@@ -87,7 +87,7 @@ static func table_spec(table: String = DEFAULT_TABLE) -> Dictionary:
 	}
 
 
-## Every schema change, in order, for dot-sql's migrator. Step N brings version N to N+1.
+## Every schema change, in order, for GameSpice SQL's migrator. Step N brings version N to N+1.
 static func migration_steps(table: String = DEFAULT_TABLE) -> Array:
 	return [
 		[table_spec(table)],
@@ -176,7 +176,7 @@ static func from_row(row: Variant) -> DotPunishment:
 	return punishment
 
 
-## A dialect's name, for logs and [code]describe()[/code]. The integers are dot-sql's.
+## A dialect's name, for logs and [code]describe()[/code]. The integers are GameSpice SQL's.
 static func dialect_name(dialect: int) -> String:
 	match dialect:
 		0: return "sqlite"

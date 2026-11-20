@@ -6,11 +6,11 @@ Part of the [**GameSpice**](https://gamespice.net) collection: modular, MIT-lice
 
 ## Install
 
-Copy `addons/dot_moderation/` and [dot-core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [dot-server](https://github.com/gamespice-platform/server) and [dot-voice](https://github.com/gamespice-platform/voice) without importing either.
+Copy `addons/dot_moderation/` and [GameSpice Core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [GameSpice Server](https://github.com/gamespice-platform/server) and [GameSpice Voice](https://github.com/gamespice-platform/voice) without importing either.
 
 ## Why it exists next to Server
 
-dot-server already has bans, kicks, admin flags and an audit log. What it lacks is a mute that outlives a session: `DotClientSession.silence()` sets flags on a session object that dies on disconnect, so a muted player reconnects and can talk again. Here a mute is the same kind of record as a ban: stored, expiring, scoped and revocable. Use one ban system, not both.
+GameSpice Server already has bans, kicks, admin flags and an audit log. What it lacks is a mute that outlives a session: `DotClientSession.silence()` sets flags on a session object that dies on disconnect, so a muted player reconnects and can talk again. Here a mute is the same kind of record as a ban: stored, expiring, scoped and revocable. Use one ban system, not both.
 
 ## Punishments
 
@@ -23,7 +23,7 @@ A `DotPunishment` has a kind (`BAN`, `KICK`, `VOICE_MUTE`, `GAG`, `WARN`), a sub
 
 ### Enforcing bans
 
-This addon cannot refuse a connection itself. The manager registers under `dot_ban_source` and dot-server calls `check_admission(uid: String, address: String) -> DotResult` on every join. With nothing registered a ban stops nobody, and `describe_lines()` says so. `DotModerationManager.register_ban_source` controls this.
+This addon cannot refuse a connection itself. The manager registers under `dot_ban_source` and GameSpice Server calls `check_admission(uid: String, address: String) -> DotResult` on every join. With nothing registered a ban stops nobody, and `describe_lines()` says so. `DotModerationManager.register_ban_source` controls this.
 
 ## Storage
 
@@ -33,10 +33,10 @@ Every backend holds the same table, defined in `DotPunishmentSchema`.
 | --- | --- | --- |
 | JSON file | `DotPunishmentStoreFile` | Works out of the box. Right for one server. |
 | REST API | `DotPunishmentStoreRest` | Works out of the box. Four endpoints, so you can keep your own ban system. |
-| SQLite | `DotPunishmentStoreSql` + dot-sql `DotSqlDriverSqlite` | Needs the [godot-sqlite](https://github.com/2shady4u/godot-sqlite) extension. |
-| PostgreSQL, MySQL, MariaDB | `DotPunishmentStoreSql` + dot-sql `DotSqlDriverGateway` | Needs an HTTP gateway beside the database. dot-sql ships a reference one. |
+| SQLite | `DotPunishmentStoreSql` + GameSpice SQL `DotSqlDriverSqlite` | Needs the [godot-sqlite](https://github.com/2shady4u/godot-sqlite) extension. |
+| PostgreSQL, MySQL, MariaDB | `DotPunishmentStoreSql` + GameSpice SQL `DotSqlDriverGateway` | Needs an HTTP gateway beside the database. GameSpice SQL ships a reference one. |
 
-Godot cannot speak the Postgres or MySQL protocols itself, and a game server should not hold a database password anyway, so the drivers live in [dot-sql](https://github.com/gamespice-platform/sql). dot-sql is optional. Statements are always parameterised.
+Godot cannot speak the Postgres or MySQL protocols itself, and a game server should not hold a database password anyway, so the drivers live in [GameSpice SQL](https://github.com/gamespice-platform/sql). GameSpice SQL is optional. Statements are always parameterised.
 
 REST contract:
 
@@ -72,7 +72,7 @@ tools.unsupported_reasons[DotModTools.ACTION_NOCLIP] = "A flat 2D game has no wa
 
 The addon handles the immunity check (acting on yourself is always allowed), the audit record, who has which toggle on, switching freeze and noclip off on respawn while god and buddha carry over (`persist_on_respawn`), forgetting state on leave, and timed release (`release_after`). An ability with no handler is refused with `CODE_UNSUPPORTED`.
 
-`DotModToolCommands.install(host, tools, server)` registers all of it on a dot-server console and in chat as `!noclip` and so on, with player completion. Targets resolve through the server's `resolve_target` plus `@me`, `@all`, `@others`, and `@alive`, `@dead`, `@team:<name>` where the game provides `alive_fn` and `team_fn`. Permission flags are `slay` (handling a person), `cheats` (changing the game) and `teleport`; `permissions` overrides them.
+`DotModToolCommands.install(host, tools, server)` registers all of it on a GameSpice Server console and in chat as `!noclip` and so on, with player completion. Targets resolve through the server's `resolve_target` plus `@me`, `@all`, `@others`, and `@alive`, `@dead`, `@team:<name>` where the game provides `alive_fn` and `team_fn`. Permission flags are `slay` (handling a person), `cheats` (changing the game) and `teleport`; `permissions` overrides them.
 
 ## Settings
 
@@ -85,7 +85,7 @@ The addon handles the immunity check (acting on yourself is always allowed), the
 
 ## Not included
 
-- Console commands for `mute`, `gag` and `ban` (they belong to dot-server's console, which has permissions and auditing). The live tools are registered onto that console.
+- Console commands for `mute`, `gag` and `ban` (they belong to GameSpice Server's console, which has permissions and auditing). The live tools are registered onto that console.
 - Kicking players. This addon records a kick, and the server performs it.
 - Per-address connection limits (`sv_max_connections_per_ip` in dot-server) and an appeals workflow (`evidence` holds a ticket number).
 

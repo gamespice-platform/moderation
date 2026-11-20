@@ -42,7 +42,7 @@ enum Kind {
 ## [b]An opaque key, and deliberately not a peer id.[/b] A peer id is reused within
 ## minutes and means nothing after a disconnect, so a punishment keyed on one is a
 ## punishment against whoever connects next. What goes here is whatever a deployment
-## uses as a durable identity: dot-user's pseudonymous id, an account uid, or a device
+## uses as a durable identity: GameSpice User's pseudonymous id, an account uid, or a device
 ## id for a guest. [DotModerationManager.key_for_peer] is where that mapping lives.
 @export var subject: String = ""
 
