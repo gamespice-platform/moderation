@@ -4,27 +4,27 @@ Moderation that survives a reconnect: bans, kicks, gags, voice mutes and warning
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to moderation. The reasoning is in [docs/](docs/README.md).
 
-**Only GameSpice Core is a dependency.** GameSpice Server, GameSpice Voice and GameSpice SQL are optional and none is named in the source: they meet through `DotRegistry` names (`dot_ban_source`, `dot_mute_source`), duck-typed console hosts, and an untyped SQL driver. The suites link GameSpice Voice and GameSpice SQL (`.gitignore`).
+**Only GameSpice Core is a dependency.** GameSpice Server, GameSpice Voice and GameSpice SQL are optional and none is named in the source: they meet through `GSRegistry` names (`dot_ban_source`, `dot_mute_source`), duck-typed console hosts, and an untyped SQL driver. The suites link GameSpice Voice and GameSpice SQL (`.gitignore`).
 
 ## Read before
 
 | Read | Before |
 | --- | --- |
 | [docs/README.md](docs/README.md) | the index |
-| [docs/records.md](docs/records.md) | `DotPunishment`, `DotPunishmentSubject`, `DotModerationManager`, admission, mutes, immunity, what is deliberately not here |
-| [docs/storage.md](docs/storage.md) | any `DotPunishmentStore`, `DotPunishmentSchema` |
-| [docs/mod-tools.md](docs/mod-tools.md) | `DotModTools`, `DotModToolCommands` |
+| [docs/records.md](docs/records.md) | `GSPunishment`, `GSPunishmentSubject`, `GSModerationManager`, admission, mutes, immunity, what is deliberately not here |
+| [docs/storage.md](docs/storage.md) | any `GSPunishmentStore`, `GSPunishmentSchema` |
+| [docs/mod-tools.md](docs/mod-tools.md) | `GSModTools`, `GSModToolCommands` |
 | [docs/history.md](docs/history.md) | the bugs, and how each looked |
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| `addons/dot_moderation/core/` | `DotPunishment` (the record), `DotPunishmentSubject` (how a uid or an address is spelled) |
-| `addons/dot_moderation/runtime/` | `DotModerationManager`: the set in force; registers `dot_ban_source` and `dot_mute_source` |
-| `addons/dot_moderation/store/` | `DotPunishmentStore` (abstract), file, SQL (on GameSpice SQL, duck-typed), REST; `DotPunishmentSchema` |
-| `addons/dot_moderation/tools/` | `DotModTools`: teleport and return, and the handler table |
-| `addons/dot_moderation/integrations/` | `DotModToolCommands`: the live tools as console commands on any host |
+| `addons/dot_moderation/core/` | `GSPunishment` (the record), `GSPunishmentSubject` (how a uid or an address is spelled) |
+| `addons/dot_moderation/runtime/` | `GSModerationManager`: the set in force; registers `dot_ban_source` and `dot_mute_source` |
+| `addons/dot_moderation/store/` | `GSPunishmentStore` (abstract), file, SQL (on GameSpice SQL, duck-typed), REST; `GSPunishmentSchema` |
+| `addons/dot_moderation/tools/` | `GSModTools`: teleport and return, and the handler table |
+| `addons/dot_moderation/integrations/` | `GSModToolCommands`: the live tools as console commands on any host |
 | `examples/moderation_selftest.tscn` | the suite (links GameSpice Voice and GameSpice SQL's recording driver) |
 | `examples/moderation_sql_live.tscn` | the SQL store against real SQLite, Postgres and MySQL |
 | `examples/punishment_api_server.gd` | a real HTTP server the REST store is tested against |
@@ -44,7 +44,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - Empty scope on either side means everything. [records](docs/records.md#a-punishment-is-a-record-not-a-flag)
 - Expiry is answered on read, never swept. [records](docs/records.md#expiry-is-answered-on-read-never-swept)
 - A subject is never a peer id; set `key_for_peer` (unset is `str(peer)` and warns). [records](docs/records.md#the-subject-is-never-a-peer-id)
-- Spell subjects through `DotPunishmentSubject.for_address` / `for_uid`; `ban_address` and `ban_uid` are a pair; loopback and unknown addresses are refused. [records](docs/records.md#an-address-is-a-subject-too-and-how-it-is-spelled-is-the-whole-trick)
+- Spell subjects through `GSPunishmentSubject.for_address` / `for_uid`; `ban_address` and `ban_uid` are a pair; loopback and unknown addresses are refused. [records](docs/records.md#an-address-is-a-subject-too-and-how-it-is-spelled-is-the-whole-trick)
 - A ban stops nobody unless something asks: `check_admission` on `dot_ban_source` checks both spellings of a uid; `describe_lines()` warns when nothing is registered. [records](docs/records.md#dot_ban_source-or-the-ban-that-stops-nobody)
 - The GameSpice Voice join is tested by running both halves for real. [records](docs/records.md#the-join-with-dot-voice-and-why-it-is-tested)
 - Immunity guards the target as well as the actor; equal cannot act on equal; zero is no immunity; acting on yourself is never an immunity question. [records](docs/records.md#immunity-in-both-directions)
@@ -52,7 +52,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 **Storage**
 
 - A failed load keeps what is in force; writes are awaited before memory changes; a failed revoke rolls back; `is_writable() == false` is legitimate; one bad entry is dropped, not fatal. [storage](docs/storage.md#the-store-is-what-makes-it-a-communitys-list-rather-than-a-machines)
-- The table is `DotPunishmentSchema.table_spec()`; SQL and dialects are GameSpice SQL's; the driver is duck-typed; statements are parameterised; time is Unix seconds in a BIGINT. [storage](docs/storage.md#sql)
+- The table is `GSPunishmentSchema.table_spec()`; SQL and dialects are GameSpice SQL's; the driver is duck-typed; statements are parameterised; time is Unix seconds in a BIGINT. [storage](docs/storage.md#sql)
 - The REST store requires the `punishments` key; a missing key is a failure, never an empty list. [storage](docs/storage.md#the-rest-store)
 
 **Tools**
@@ -65,11 +65,11 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 | To change | Where |
 | --- | --- |
-| Who a peer is | `DotModerationManager.key_for_peer` |
-| Where punishments live | `DotPunishmentStoreFile`, `DotPunishmentStoreSql` (with a GameSpice SQL driver), `DotPunishmentStoreRest`, or a `DotPunishmentStore` subclass |
+| Who a peer is | `GSModerationManager.key_for_peer` |
+| Where punishments live | `GSPunishmentStoreFile`, `GSPunishmentStoreSql` (with a GameSpice SQL driver), `GSPunishmentStoreRest`, or a `GSPunishmentStore` subclass |
 | Whether bans refuse connections | `register_ban_source` (on), with GameSpice Server asking `dot_ban_source` |
-| Whether mutes reach voice | `dot_mute_source`, asked by `DotVoiceRouter` |
-| What a live tool does in this game | `DotModTools.handlers`, `unsupported_reasons`, `position_fn` / `teleport_fn` |
+| Whether mutes reach voice | `dot_mute_source`, asked by `GSVoiceRouter` |
+| What a live tool does in this game | `GSModTools.handlers`, `unsupported_reasons`, `position_fn` / `teleport_fn` |
 | Group targets | `alive_fn`, `team_fn` on the commands |
 | Which abilities survive a respawn | `persist_on_respawn` |
 

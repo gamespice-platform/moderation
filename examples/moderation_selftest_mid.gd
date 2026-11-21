@@ -16,8 +16,8 @@ func _test_voice_actually_asks() -> void:
 		_done()
 		return
 
-	var manager := DotModerationManager.new()
-	manager.store = DotPunishmentStoreFile.new(DATA.path_join("join.json"))
+	var manager := GSModerationManager.new()
+	manager.store = GSPunishmentStoreFile.new(DATA.path_join("join.json"))
 	# On, because publishing under `dot_mute_source` IS the integration.
 	manager.register_mute_source = true
 	add_child(manager)
@@ -25,7 +25,7 @@ func _test_voice_actually_asks() -> void:
 	await manager.load_all()
 
 	_check(
-		DotRegistry.get_service(&"dot_mute_source") == manager,
+		GSRegistry.get_service(&"dot_mute_source") == manager,
 		"the manager publishes itself where dot-voice looks",
 		"one registration, and four call sites in this family have found null before"
 	)
@@ -36,12 +36,12 @@ func _test_voice_actually_asks() -> void:
 	manager.key_for_peer = func(peer: int) -> String:
 		return str(peers.get(peer, "peer:%d" % peer))
 
-	var config := DotVoiceConfig.new()
+	var config := GSVoiceConfig.new()
 	config.sample_rate = 24000
 	config.frame_ms = 20.0
 	config.codec_id = &"adpcm"
 
-	var router := DotVoiceRouter.new()
+	var router := GSVoiceRouter.new()
 	router.name = "Router"
 	router.config = config
 	router.max_bytes_per_second = 0
@@ -56,14 +56,14 @@ func _test_voice_actually_asks() -> void:
 	router.send_fn = func(peer: int, _bytes: PackedByteArray) -> void:
 		delivered.append(peer)
 
-	var codec := DotVoiceCodec.instance_for(&"adpcm")
-	var frame := DotVoiceSourceBuffer.tone(300.0, 0.02, config.sample_rate, 0.4)
+	var codec := GSVoiceCodec.instance_for(&"adpcm")
+	var frame := GSVoiceSourceBuffer.tone(300.0, 0.02, config.sample_rate, 0.4)
 
 	var speak := func(from: int) -> void:
-		var packet := DotVoicePacket.new()
+		var packet := GSVoicePacket.new()
 		packet.speaker = from
 		packet.sample_count = config.frame_samples()
-		packet.channel = DotVoiceRouter.Channel.ALL
+		packet.channel = GSVoiceRouter.Channel.ALL
 		packet.codec_id = &"adpcm"
 		packet.payload = codec.encode(frame)
 		router.relay(from, packet.to_bytes())
@@ -81,10 +81,10 @@ func _test_voice_actually_asks() -> void:
 	_done()
 
 
-func _voice_mute(manager: DotModerationManager, speak: Callable, delivered: Array[int], router: Node) -> void:
+func _voice_mute(manager: GSModerationManager, speak: Callable, delivered: Array[int], router: Node) -> void:
 	# Now mute her through moderation, and nothing about the router changes.
-	var issued: DotResult = await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:alice", "mic spam", "admin:sarah", 600
+	var issued: GSResult = await manager.issue(
+		GSPunishment.Kind.VOICE_MUTE, "uid:alice", "mic spam", "admin:sarah", 600
 	)
 	_check(issued.ok, "a moderator mutes her", str(issued.error))
 
@@ -102,13 +102,13 @@ func _voice_mute(manager: DotModerationManager, speak: Callable, delivered: Arra
 	_check(delivered.size() == 2, "bob is unaffected (%d)" % delivered.size())
 
 
-func _voice_reconnect(manager: DotModerationManager, peers: Dictionary, speak: Callable, delivered: Array[int]) -> void:
+func _voice_reconnect(manager: GSModerationManager, peers: Dictionary, speak: Callable, delivered: Array[int]) -> void:
 	# The mute has to survive the thing every muted player tries.
 	manager.queue_free()
 	await get_tree().process_frame
 
-	var rejoined := DotModerationManager.new()
-	rejoined.store = DotPunishmentStoreFile.new(DATA.path_join("join.json"))
+	var rejoined := GSModerationManager.new()
+	rejoined.store = GSPunishmentStoreFile.new(DATA.path_join("join.json"))
 	rejoined.register_mute_source = true
 	rejoined.key_for_peer = func(peer: int) -> String:
 		return str(peers.get(peer, "peer:%d" % peer))
@@ -128,22 +128,22 @@ func _voice_reconnect(manager: DotModerationManager, peers: Dictionary, speak: C
 	rejoined.queue_free()
 
 
-func _voice_unmapped(rejoined: DotModerationManager, speak: Callable, delivered: Array[int]) -> void:
+func _voice_unmapped(rejoined: GSModerationManager, speak: Callable, delivered: Array[int]) -> void:
 	# And lifting it restores her, through the same seam.
-	await rejoined.revoke_all("uid:alice", DotPunishment.Kind.VOICE_MUTE, "admin:sarah")
+	await rejoined.revoke_all("uid:alice", GSPunishment.Kind.VOICE_MUTE, "admin:sarah")
 	delivered.clear()
 	speak.call(1)
 	_check(delivered.size() == 2, "lifting the mute lets her talk again")
 
 	# The mapping is the part that fails silently, so it is asserted rather than trusted.
-	var unmapped := DotModerationManager.new()
-	unmapped.store = DotPunishmentStoreFile.new(DATA.path_join("unmapped.json"))
+	var unmapped := GSModerationManager.new()
+	unmapped.store = GSPunishmentStoreFile.new(DATA.path_join("unmapped.json"))
 	unmapped.register_mute_source = false
 	add_child(unmapped)
 	await get_tree().process_frame
 	await unmapped.load_all()
 	await unmapped.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:alice", "spam", "console", 600
+		GSPunishment.Kind.VOICE_MUTE, "uid:alice", "spam", "console", 600
 	)
 	_check(
 		not unmapped.is_voice_muted(1),
@@ -176,8 +176,8 @@ func _test_schema() -> void:
 	# The spec, not the DDL: rendering it per dialect is GameSpice SQL's job and is tested
 	# there, against real SQLite, Postgres and MySQL. What this addon owns is which
 	# columns exist, which are keys, and which are indexed.
-	var spec := DotPunishmentSchema.table_spec()
-	_check(DotSqlSchema.validate(spec).ok, "the table spec is valid", str(DotSqlSchema.validate(spec).error))
+	var spec := GSPunishmentSchema.table_spec()
+	_check(GSSqlSchema.validate(spec).ok, "the table spec is valid", str(GSSqlSchema.validate(spec).error))
 
 	var columns := {}
 	for column in spec["columns"]:
@@ -188,7 +188,7 @@ func _test_schema() -> void:
 	for column in ["subject", "reason", "expires_at", "issuer", "kind", "revoked"]:
 		_check(columns.has(column), "has %s" % column)
 	_check(
-		columns.size() == DotPunishmentSchema.COLUMNS.size(),
+		columns.size() == GSPunishmentSchema.COLUMNS.size(),
 		"one column per mapped field (%d)" % columns.size()
 	)
 	_check(
@@ -217,14 +217,14 @@ func _test_schema() -> void:
 	_check(index_names.has("active_idx"), "and so is what is still in force")
 
 	# Rendered for MySQL, the one with the traps.
-	var mysql := DotSqlSchema.ddl(spec, DotSqlDialect.Kind.MYSQL)
+	var mysql := GSSqlSchema.ddl(spec, GSSqlDialect.Kind.MYSQL)
 	_check(
 		mysql.size() == 1 and mysql[0].contains("KEY dot_punishments_subject_idx"),
 		"mysql: indexes inside the CREATE TABLE",
 		"MySQL 8 has no CREATE INDEX IF NOT EXISTS"
 	)
 	_check(
-		not DotPunishmentSchema.select_by_subject().contains("$"),
+		not GSPunishmentSchema.select_by_subject().contains("$"),
 		"statements use ? in every dialect"
 	)
 
@@ -234,14 +234,14 @@ func _test_schema() -> void:
 
 func _check_schema_rows() -> void:
 	# The row mapping, both directions, including the trap that already bit this addon.
-	var mute := DotPunishment.create(
-		DotPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 600
+	var mute := GSPunishment.create(
+		GSPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 600
 	)
 	mute.evidence = {"demo": "r3.dem"}
-	var row := DotPunishmentSchema.to_row(mute)
+	var row := GSPunishmentSchema.to_row(mute)
 
 	_check(
-		row.size() == DotPunishmentSchema.COLUMNS.size(),
+		row.size() == GSPunishmentSchema.COLUMNS.size(),
 		"a row has one value per column (%d)" % row.size()
 	)
 	_check(
@@ -251,8 +251,8 @@ func _check_schema_rows() -> void:
 		+ "back as a warning"
 	)
 
-	var back := DotPunishmentSchema.from_row(row)
-	_check(back.kind == DotPunishment.Kind.VOICE_MUTE, "a row round-trips its kind")
+	var back := GSPunishmentSchema.from_row(row)
+	_check(back.kind == GSPunishment.Kind.VOICE_MUTE, "a row round-trips its kind")
 	_check(back.subject == "uid:1" and back.reason == "mic spam", "and its content")
 	_check(back.expires_at == mute.expires_at, "and its expiry")
 	_check(
@@ -263,20 +263,20 @@ func _check_schema_rows() -> void:
 	# A driver may hand a boolean back as a bool, an int or a string, and only one of
 	# those is what any given backend does.
 	for revoked_value in [true, 1, "1"]:
-		var mapped := DotPunishmentSchema.from_row({
+		var mapped := GSPunishmentSchema.from_row({
 			"id": "x", "subject": "uid:2", "kind": "ban", "revoked": revoked_value
 		})
 		_check(mapped.revoked, "revoked reads as true from %s" % type_string(typeof(revoked_value)))
 	for falsey in [false, 0, "0", ""]:
-		var mapped := DotPunishmentSchema.from_row({
+		var mapped := GSPunishmentSchema.from_row({
 			"id": "x", "subject": "uid:2", "kind": "ban", "revoked": falsey
 		})
 		_check(not mapped.revoked, "and false from %s" % type_string(typeof(falsey)))
 
 	# Rows come back as a Dictionary from some drivers and an Array from others.
-	var as_array := DotPunishmentSchema.from_row(row)
+	var as_array := GSPunishmentSchema.from_row(row)
 	_check(as_array != null and as_array.id == mute.id, "an array row maps too")
-	_check(DotPunishmentSchema.from_row("nonsense") == null, "and nonsense maps to null")
+	_check(GSPunishmentSchema.from_row("nonsense") == null, "and nonsense maps to null")
 
 
 func _test_sql_store() -> void:
@@ -285,11 +285,11 @@ func _test_sql_store() -> void:
 	# The store's job is to send the right statements, bind values in the right order
 	# and map rows back. None of that needs a real engine; examples/moderation_sql_live
 	# runs the same store against real databases through GameSpice SQL's gateway.
-	var driver := DotSqlDriverRecording.new(DotSqlDialect.Kind.POSTGRES)
+	var driver := GSSqlDriverRecording.new(GSSqlDialect.Kind.POSTGRES)
 	driver.answers = {"SELECT version FROM": []}
-	var store := DotPunishmentStoreSql.new(driver)
+	var store := GSPunishmentStoreSql.new(driver)
 
-	var opened: DotResult = await store.open()
+	var opened: GSResult = await store.open()
 	_check(opened.ok, "the store opens and creates its schema", str(opened.error))
 	_check(
 		driver.matching("CREATE TABLE IF NOT EXISTS dot_punishments").size() == 1,
@@ -305,10 +305,10 @@ func _test_sql_store() -> void:
 
 	driver.clear()
 
-	var ban := DotPunishment.create(
-		DotPunishment.Kind.BAN, "uid:42", "cheating; said 'hi'", "admin:sarah", 86400
+	var ban := GSPunishment.create(
+		GSPunishment.Kind.BAN, "uid:42", "cheating; said 'hi'", "admin:sarah", 86400
 	)
-	var written: DotResult = await store.put(ban)
+	var written: GSResult = await store.put(ban)
 	_check(written.ok, "a ban is written", str(written.error))
 
 	var inserts := driver.matching("INSERT INTO")
@@ -317,7 +317,7 @@ func _test_sql_store() -> void:
 		var params: Array = statement["params"]
 
 		_check(
-			params.size() == DotPunishmentSchema.COLUMNS.size(),
+			params.size() == GSPunishmentSchema.COLUMNS.size(),
 			"with one bound parameter per column (%d)" % params.size()
 		)
 		# The reason contains a quote. If it reached the statement text rather than the
@@ -346,9 +346,9 @@ func _test_sql_store() -> void:
 
 func _sql_edges() -> void:
 	# A database written by a newer build is refused, not read.
-	var newer := DotSqlDriverRecording.new(DotSqlDialect.Kind.SQLITE)
+	var newer := GSSqlDriverRecording.new(GSSqlDialect.Kind.SQLITE)
 	newer.answers = {"SELECT version FROM": [{"version": 99}]}
-	var refused: DotResult = await DotPunishmentStoreSql.new(newer).open()
+	var refused: GSResult = await GSPunishmentStoreSql.new(newer).open()
 	_check(
 		not refused.ok,
 		"a database from a newer build is refused",
@@ -356,7 +356,7 @@ func _sql_edges() -> void:
 	)
 
 	# And the driver nobody has installed says so rather than failing later.
-	var missing := DotSqlDriverSqlite.new("user://never.db")
+	var missing := GSSqlDriverSqlite.new("user://never.db")
 	var available := missing.is_available()
 	_check(
 		not available.ok,
@@ -365,26 +365,26 @@ func _sql_edges() -> void:
 	)
 
 
-func _sql_reads(driver: DotSqlDriverRecording, store: DotPunishmentStoreSql, ban: DotPunishment) -> void:
+func _sql_reads(driver: GSSqlDriverRecording, store: GSPunishmentStoreSql, ban: GSPunishment) -> void:
 	# Reading back, through the real row mapping.
 	driver.clear()
-	driver.rows = [DotPunishmentSchema.to_row(ban)]
-	var loaded: DotResult = await store.load_all()
+	driver.rows = [GSPunishmentSchema.to_row(ban)]
+	var loaded: GSResult = await store.load_all()
 	_check(loaded.ok, "the store reads", str(loaded.error))
 	_check(
 		loaded.ok and (loaded.value as Array).size() == 1,
 		"one record comes back"
 	)
 	if loaded.ok and (loaded.value as Array).size() == 1:
-		var read: DotPunishment = (loaded.value as Array)[0]
+		var read: GSPunishment = (loaded.value as Array)[0]
 		_check(read.subject == "uid:42", "with its subject")
-		_check(read.kind == DotPunishment.Kind.BAN, "its kind")
+		_check(read.kind == GSPunishment.Kind.BAN, "its kind")
 		_check(read.reason == "cheating; said 'hi'", "and its reason intact")
 
 	# The query a live server makes on the join path.
 	driver.clear()
-	driver.rows = [DotPunishmentSchema.to_row(ban)]
-	var one: DotResult = await store.load_for("uid:42")
+	driver.rows = [GSPunishmentSchema.to_row(ban)]
+	var one: GSResult = await store.load_for("uid:42")
 	_check(one.ok, "a single subject can be looked up")
 	_check(
 		driver.statements.size() == 1
@@ -399,10 +399,10 @@ func _sql_reads(driver: DotSqlDriverRecording, store: DotPunishmentStoreSql, ban
 	# A row the table should not have had does not condemn the rest.
 	driver.clear()
 	driver.rows = [
-		DotPunishmentSchema.to_row(ban),
+		GSPunishmentSchema.to_row(ban),
 		{"id": "", "subject": "", "kind": "ban"},
 	]
-	var partial: DotResult = await store.load_all()
+	var partial: GSResult = await store.load_all()
 	_check(
 		partial.ok and (partial.value as Array).size() == 1,
 		"one unusable row does not condemn the table (%d loaded)"
@@ -412,7 +412,7 @@ func _sql_reads(driver: DotSqlDriverRecording, store: DotPunishmentStoreSql, ban
 	# A driver failure is a failure, not an empty list.
 	driver.clear()
 	driver.fail_next = "connection reset"
-	var failed: DotResult = await store.load_all()
+	var failed: GSResult = await store.load_all()
 	_check(
 		not failed.ok,
 		"a read failure is reported rather than read as 'nobody is punished'"
@@ -426,26 +426,26 @@ func _test_rest_store() -> void:
 	api.name = "PunishmentApi"
 	add_child(api)
 
-	var started: DotResult = api.start(0)
+	var started: GSResult = api.start(0)
 	if not _check(started.ok, "a punishment API is listening", str(started.error)):
 		api.queue_free()
 		_done()
 		return
 
-	var http := DotHttp.new()
+	var http := GSHttp.new()
 	http.name = "Http"
 	add_child(http)
 	await get_tree().process_frame
 
-	var store := DotPunishmentStoreRest.new(api.base_url(), http)
+	var store := GSPunishmentStoreRest.new(api.base_url(), http)
 	store.token = "secret-token"
 	api.require_token = "secret-token"
 
-	var ban := DotPunishment.create(
-		DotPunishment.Kind.BAN, "uid:77", "aimbot", "admin:sarah", 86400
+	var ban := GSPunishment.create(
+		GSPunishment.Kind.BAN, "uid:77", "aimbot", "admin:sarah", 86400
 	)
 
-	var written: DotResult = await store.put(ban)
+	var written: GSResult = await store.put(ban)
 	_check(written.ok, "a ban is PUT to the API", str(written.error))
 	_check(api.records.has(ban.id), "and the API has it")
 	_check(
@@ -454,23 +454,23 @@ func _test_rest_store() -> void:
 		"so a retry after a timeout cannot create a second record"
 	)
 
-	var loaded: DotResult = await store.load_all()
+	var loaded: GSResult = await store.load_all()
 	_check(loaded.ok, "the list is read back", str(loaded.error))
 	_check(
 		loaded.ok and (loaded.value as Array).size() == 1,
 		"with the record in it"
 	)
 	if loaded.ok and (loaded.value as Array).size() == 1:
-		var read: DotPunishment = (loaded.value as Array)[0]
+		var read: GSPunishment = (loaded.value as Array)[0]
 		_check(read.subject == "uid:77" and read.reason == "aimbot", "intact")
-		_check(read.kind == DotPunishment.Kind.BAN, "and still a ban")
+		_check(read.kind == GSPunishment.Kind.BAN, "and still a ban")
 		_check(read.expires_at == ban.expires_at, "with its expiry")
 
 	# The query a live server makes.
-	await store.put(DotPunishment.create(
-		DotPunishment.Kind.GAG, "uid:88", "spam", "console", 600
+	await store.put(GSPunishment.create(
+		GSPunishment.Kind.GAG, "uid:88", "spam", "console", 600
 	))
-	var filtered: DotResult = await store.load_for("uid:77")
+	var filtered: GSResult = await store.load_for("uid:77")
 	_check(
 		filtered.ok and (filtered.value as Array).size() == 1,
 		"one subject can be asked for (%d)"
@@ -478,12 +478,12 @@ func _test_rest_store() -> void:
 	)
 
 	# A whole manager on top of the API, which is the shape a deployment runs.
-	var manager := DotModerationManager.new()
+	var manager := GSModerationManager.new()
 	manager.store = store
 	manager.register_mute_source = false
 	add_child(manager)
 	await get_tree().process_frame
-	var pulled: DotResult = await manager.load_all()
+	var pulled: GSResult = await manager.load_all()
 	_check(pulled.ok, "a manager loads from the API")
 	_check(manager.is_banned_key("uid:77"), "and enforces what it found")
 	_check(manager.is_gagged_key("uid:88"), "for every record")
@@ -499,13 +499,13 @@ func _test_rest_store() -> void:
 
 
 func _check_rest_failures(
-	api: Node, store: DotPunishmentStoreRest, manager: DotModerationManager, ban: DotPunishment
+	api: Node, store: GSPunishmentStoreRest, manager: GSModerationManager, ban: GSPunishment
 ) -> void:
 	# The failures, which are the reason a real server is worth the hundred lines.
 	api.fail_all = true
-	var broke: DotResult = await store.load_all()
+	var broke: GSResult = await store.load_all()
 	_check(not broke.ok, "a 500 is a failure")
-	var still: DotResult = await manager.load_all()
+	var still: GSResult = await manager.load_all()
 	_check(not still.ok, "which reaches the manager")
 	_check(
 		manager.is_banned_key("uid:77"),
@@ -515,12 +515,12 @@ func _check_rest_failures(
 	api.fail_all = false
 
 	api.serve_garbage = true
-	var garbage: DotResult = await store.load_all()
+	var garbage: GSResult = await store.load_all()
 	_check(not garbage.ok, "a body that is not JSON is a failure")
 	api.serve_garbage = false
 
 	api.serve_wrong_shape = true
-	var wrong: DotResult = await store.load_all()
+	var wrong: GSResult = await store.load_all()
 	_check(
 		not wrong.ok,
 		"and so is JSON with no punishments array",
@@ -529,12 +529,12 @@ func _check_rest_failures(
 	api.serve_wrong_shape = false
 
 	store.token = "wrong"
-	var refused: DotResult = await store.load_all()
+	var refused: GSResult = await store.load_all()
 	_check(not refused.ok, "a bad token is refused by the API")
 	store.token = "secret-token"
 
 	store.writable = false
-	var readonly: DotResult = await store.put(ban)
+	var readonly: GSResult = await store.put(ban)
 	_check(
 		not readonly.ok,
 		"a read-only API refuses a write rather than pretending",
@@ -542,6 +542,6 @@ func _check_rest_failures(
 	)
 	store.writable = true
 
-	var removed: DotResult = await store.remove(ban.id)
+	var removed: GSResult = await store.remove(ban.id)
 	_check(removed.ok, "a record can be deleted")
 	_check(not api.records.has(ban.id), "and is gone from the API")

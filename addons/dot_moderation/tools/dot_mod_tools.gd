@@ -1,5 +1,5 @@
 @tool
-class_name DotModTools
+class_name GSModTools
 extends Node
 
 ## What a moderator does to a player who is standing in front of them.
@@ -9,7 +9,7 @@ extends Node
 ## what they are doing, and putting them back afterwards.
 ##
 ## [codeblock]
-## var tools := DotModTools.new()
+## var tools := GSModTools.new()
 ## tools.position_fn = func(id): return world.player(id).global_position
 ## tools.teleport_fn = func(id, to): world.player(id).global_position = to
 ## add_child(tools)
@@ -22,7 +22,7 @@ extends Node
 ## GameSpice Core, so it has no scene, no player list, no idea whether the game is 2D or 3D and
 ## no way to move anything. Positions come from [member position_fn] and moves go through
 ## [member teleport_fn], both supplied by the host. That is the same shape
-## [DotVoiceRouter] uses for teams and positions, and the reason GameSpice Timer can serve a 3D
+## [GSVoiceRouter] uses for teams and positions, and the reason GameSpice Timer can serve a 3D
 ## surf map and a 2D course from one implementation.
 ##
 ## Positions are [Variant] rather than [Vector3] for exactly that reason: a
@@ -32,8 +32,8 @@ extends Node
 ## [b]Every action is recorded.[/b] Teleporting a player is a moderator power and it is
 ## the one that looks most like cheating from the outside: "an admin moved me" and "an
 ## admin moved themselves behind me" are both things a player will complain about. When a
-## [DotModerationManager] is attached, each action goes on that player's history as a
-## [constant DotPunishment.Kind.WARN] carrying what happened, so there is an answer.
+## [GSModerationManager] is attached, each action goes on that player's history as a
+## [constant GSPunishment.Kind.WARN] carrying what happened, so there is an answer.
 ##
 ## [b]The rest of the community admin set — noclip, god, buddha, freeze, slay, slap,
 ## respawn, health, speed, gravity, give, strip, rename, burn, blind, beacon — is a table of
@@ -45,15 +45,15 @@ extends Node
 ## verb:
 ##
 ## [codeblock]
-## tools.handlers[DotModTools.ACTION_NOCLIP] = func(id: StringName, args: Dictionary) -> DotResult:
-##     return DotFpsAdminModifiers.set_noclip(world.player(id).controller, args["on"])
-## tools.unsupported_reasons[DotModTools.ACTION_GIVE] = "There is nothing to give here."
+## tools.handlers[GSModTools.ACTION_NOCLIP] = func(id: StringName, args: Dictionary) -> GSResult:
+##     return GSFpsAdminModifiers.set_noclip(world.player(id).controller, args["on"])
+## tools.unsupported_reasons[GSModTools.ACTION_GIVE] = "There is nothing to give here."
 ##
-## await tools.toggle(&"admin:sarah", &"uid:bob", DotModTools.ACTION_NOCLIP)   # on
+## await tools.toggle(&"admin:sarah", &"uid:bob", GSModTools.ACTION_NOCLIP)   # on
 ## await tools.slap(&"admin:sarah", &"uid:bob", 10.0)
 ## [/codeblock]
 ##
-## An ability with no handler is refused with [constant DotError.CODE_UNSUPPORTED] and the
+## An ability with no handler is refused with [constant GSError.CODE_UNSUPPORTED] and the
 ## game's reason when it gave one, and [method describe_lines] lists what this game
 ## supports — because "the command exists and does nothing" is indistinguishable from a
 ## broken command, and an admin is owed the difference.
@@ -164,7 +164,7 @@ var position_fn: Callable = Callable()
 ##
 ## [b]Not the id itself when a server has accounts.[/b] A tool id is a session's userid,
 ## which restarts at 1 every boot — so a record filed against "73" is read back after a
-## restart as somebody else's history. [DotModToolCommands] sets this from the moderation
+## restart as somebody else's history. [GSModToolCommands] sets this from the moderation
 ## manager's own peer mapping; unset, the id is used as it is.
 var subject_fn: Callable = Callable()
 
@@ -175,10 +175,10 @@ var teleport_fn: Callable = Callable()
 ## `func(id: StringName) -> int`. Optional; without it nobody is immune.
 var immunity_fn: Callable = Callable()
 
-## Optional [DotModerationManager], for the history.
-var manager: DotModerationManager = null
+## Optional [GSModerationManager], for the history.
+var manager: GSModerationManager = null
 
-## One handler per ability. `func(target: StringName, args: Dictionary) -> DotResult`.
+## One handler per ability. `func(target: StringName, args: Dictionary) -> GSResult`.
 ##
 ## [param args] always carries `actor`; a toggle adds `on` (bool), a multiplier `scale`,
 ## [constant ACTION_SLAP] `damage`, [constant ACTION_HEALTH] `value`,
@@ -216,12 +216,12 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	if register_service:
-		DotRegistry.register(SERVICE, self)
+		GSRegistry.register(SERVICE, self)
 
 
 func _exit_tree() -> void:
 	if register_service:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 # --- Actions ---------------------------------------------------------------
@@ -229,12 +229,12 @@ func _exit_tree() -> void:
 ## Moves a player to a position.
 func teleport(
 	actor: StringName, target: StringName, to: Variant, actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	return await _move(ACTION_TELEPORT, actor, target, to, {"to": to}, actor_immunity)
 
 
 ## Brings a player to the moderator.
-func bring(actor: StringName, target: StringName, actor_immunity: int = -1) -> DotResult:
+func bring(actor: StringName, target: StringName, actor_immunity: int = -1) -> GSResult:
 	var at := _position_of(actor)
 
 	if at == null:
@@ -250,7 +250,7 @@ func bring(actor: StringName, target: StringName, actor_immunity: int = -1) -> D
 ## a return and the [b]target's[/b] immunity that is not consulted: going to look at
 ## somebody is not something to be immune from, and a moderator who cannot observe a
 ## senior admin cannot do their job.
-func goto(actor: StringName, target: StringName) -> DotResult:
+func goto(actor: StringName, target: StringName) -> GSResult:
 	var at := _position_of(target)
 
 	if at == null:
@@ -272,14 +272,14 @@ func goto(actor: StringName, target: StringName) -> DotResult:
 	# movements are the ones an audit is actually about.
 	await _record(actor, ACTION_GOTO, actor, target)
 
-	return DotResult.success(landing)
+	return GSResult.success(landing)
 
 
 ## Sends a player to another player.
 func send(
 	actor: StringName, target: StringName, destination: StringName,
 	actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	var at := _position_of(destination)
 
 	if at == null:
@@ -300,7 +300,7 @@ func send(
 ## a `goto`, so a moderator can put themselves back too.
 func return_player(
 	actor: StringName, target: StringName, actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	var stack: Array = _history.get(target, [])
 
 	if stack.is_empty():
@@ -324,7 +324,7 @@ func return_player(
 
 	await _record(target, ACTION_RETURN, actor, target)
 
-	return DotResult.success(to)
+	return GSResult.success(to)
 
 
 ## Whether a player has somewhere to be put back to.
@@ -394,7 +394,7 @@ func perform(
 	action: StringName,
 	args: Dictionary = {},
 	actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	if not supports(action):
 		var why: String = str(unsupported_reasons.get(action, ""))
 		return _refuse(action, actor, target, "unsupported",
@@ -413,12 +413,12 @@ func perform(
 
 	var handler: Callable = handlers[action]
 	var answer: Variant = await handler.call(target, call_args)
-	var result: DotResult = answer if answer is DotResult else DotResult.success(answer)
+	var result: GSResult = answer if answer is GSResult else GSResult.success(answer)
 
 	if not result.ok:
 		actions_refused += 1
 		refused.emit(action, actor, target, "failed")
-		DotLog.info(CHANNEL, "a game refused an ability", {
+		GSLog.info(CHANNEL, "a game refused an ability", {
 			"action": String(action), "target": String(target),
 			"why": result.error.message if result.error != null else "",
 		})
@@ -443,66 +443,66 @@ func toggle(
 	action: StringName,
 	on: Variant = null,
 	actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	var want := not is_active(target, action) if on == null else bool(on)
 	return await perform(actor, target, action, {"on": want}, actor_immunity)
 
 
-func noclip(actor: StringName, target: StringName, on: Variant = null) -> DotResult:
+func noclip(actor: StringName, target: StringName, on: Variant = null) -> GSResult:
 	return await toggle(actor, target, ACTION_NOCLIP, on)
 
 
-func god(actor: StringName, target: StringName, on: Variant = null) -> DotResult:
+func god(actor: StringName, target: StringName, on: Variant = null) -> GSResult:
 	return await toggle(actor, target, ACTION_GOD, on)
 
 
-func buddha(actor: StringName, target: StringName, on: Variant = null) -> DotResult:
+func buddha(actor: StringName, target: StringName, on: Variant = null) -> GSResult:
 	return await toggle(actor, target, ACTION_BUDDHA, on)
 
 
-func freeze(actor: StringName, target: StringName, on: Variant = true) -> DotResult:
+func freeze(actor: StringName, target: StringName, on: Variant = true) -> GSResult:
 	return await toggle(actor, target, ACTION_FREEZE, on)
 
 
-func slay(actor: StringName, target: StringName) -> DotResult:
+func slay(actor: StringName, target: StringName) -> GSResult:
 	return await perform(actor, target, ACTION_SLAY)
 
 
 ## A shove, and optionally some damage. Zero damage is the classic slap: humiliating,
 ## harmless, and exactly as audited as a slay.
-func slap(actor: StringName, target: StringName, damage: float = 0.0) -> DotResult:
+func slap(actor: StringName, target: StringName, damage: float = 0.0) -> GSResult:
 	return await perform(actor, target, ACTION_SLAP, {"damage": damage})
 
 
-func respawn(actor: StringName, target: StringName) -> DotResult:
+func respawn(actor: StringName, target: StringName) -> GSResult:
 	return await perform(actor, target, ACTION_RESPAWN)
 
 
-func set_health(actor: StringName, target: StringName, value: float) -> DotResult:
+func set_health(actor: StringName, target: StringName, value: float) -> GSResult:
 	return await perform(actor, target, ACTION_HEALTH, {"value": value})
 
 
-func set_speed(actor: StringName, target: StringName, scale: float) -> DotResult:
+func set_speed(actor: StringName, target: StringName, scale: float) -> GSResult:
 	return await perform(actor, target, ACTION_SPEED, {"scale": scale})
 
 
-func set_gravity(actor: StringName, target: StringName, scale: float) -> DotResult:
+func set_gravity(actor: StringName, target: StringName, scale: float) -> GSResult:
 	return await perform(actor, target, ACTION_GRAVITY, {"scale": scale})
 
 
-func give(actor: StringName, target: StringName, item: String) -> DotResult:
+func give(actor: StringName, target: StringName, item: String) -> GSResult:
 	return await perform(actor, target, ACTION_GIVE, {"item": item})
 
 
-func strip(actor: StringName, target: StringName) -> DotResult:
+func strip(actor: StringName, target: StringName) -> GSResult:
 	return await perform(actor, target, ACTION_STRIP)
 
 
-func rename(actor: StringName, target: StringName, new_name: String) -> DotResult:
+func rename(actor: StringName, target: StringName, new_name: String) -> GSResult:
 	return await perform(actor, target, ACTION_RENAME, {"name": new_name})
 
 
-func burn(actor: StringName, target: StringName, seconds: float = 5.0) -> DotResult:
+func burn(actor: StringName, target: StringName, seconds: float = 5.0) -> GSResult:
 	return await perform(actor, target, ACTION_BURN, {"seconds": seconds})
 
 
@@ -547,9 +547,9 @@ func active_on(target: StringName) -> PackedStringArray:
 ## Switches a toggle off with nobody behind it: a timed freeze running out, a game that
 ## ends a run. No immunity check, because nobody is acting on anybody; still audited, as
 ## the system.
-func release(target: StringName, action: StringName) -> DotResult:
+func release(target: StringName, action: StringName) -> GSResult:
 	if not is_active(target, action):
-		return DotResult.success(false)
+		return GSResult.success(false)
 
 	return await perform(&"system", target, action, {"on": false}, 100)
 
@@ -582,7 +582,7 @@ func _release_if_same(target: StringName, action: StringName, granted_at: int, s
 	var now: Variant = (_toggles.get(action, {}) as Dictionary).get(target)
 	if now is Dictionary and int((now as Dictionary).get("at", 0)) == granted_at \
 			and int((now as Dictionary).get("serial", 0)) == serial:
-		var _released: DotResult = await release(target, action)
+		var _released: GSResult = await release(target, action)
 
 
 ## A player came back with a new body. Call from the game's own spawn path.
@@ -635,7 +635,7 @@ func _move(
 	to: Variant,
 	detail: Dictionary,
 	actor_immunity: int = -1
-) -> DotResult:
+) -> GSResult:
 	if to == null:
 		return _refuse(action, actor, target, "no_position", "There is nowhere to go.")
 
@@ -654,7 +654,7 @@ func _move(
 
 	await _record(target, action, actor, target)
 
-	return DotResult.success(to)
+	return GSResult.success(to)
 
 
 ## Saves where a player is, so a return has somewhere to go.
@@ -691,7 +691,7 @@ func _position_of(id: StringName) -> Variant:
 
 
 func _stand_off(destination: Variant, arriving_from: Variant) -> Variant:
-	return DotModToolsInternals.stand_off(destination, arriving_from, goto_standoff)
+	return GSModToolsInternals.stand_off(destination, arriving_from, goto_standoff)
 
 
 ## The refusal message when an actor may not act on a target, or empty when they may.
@@ -714,7 +714,7 @@ func _immunity_refusal(
 	if actor_level > target_level:
 		return ""
 
-	# Equal cannot act on equal, the same rule DotModerationManager applies to
+	# Equal cannot act on equal, the same rule GSModerationManager applies to
 	# punishments and for the same reason: two moderators at the same level teleporting
 	# each other around has no correct resolution.
 	return "They are protected by a higher immunity (theirs %d, yours %d)." % [
@@ -725,20 +725,20 @@ func _immunity_refusal(
 func _refuse(
 	action: StringName, actor: StringName, target: StringName,
 	reason: String, message: String
-) -> DotResult:
+) -> GSResult:
 	actions_refused += 1
 	refused.emit(action, actor, target, reason)
-	var code := DotError.CODE_STATE
+	var code := GSError.CODE_STATE
 
 	match reason:
 		"immune":
-			code = DotError.CODE_FORBIDDEN
+			code = GSError.CODE_FORBIDDEN
 		"unsupported":
-			code = DotError.CODE_UNSUPPORTED
+			code = GSError.CODE_UNSUPPORTED
 		"invalid":
-			code = DotError.CODE_INVALID
+			code = GSError.CODE_INVALID
 
-	return DotResult.fail(
+	return GSResult.fail(
 		code,
 		message,
 		"%s %s -> %s" % [action, actor, target]
@@ -746,21 +746,21 @@ func _refuse(
 
 
 func _validate(action: StringName, args: Dictionary) -> String:
-	return DotModToolsInternals.validate(action, args)
+	return GSModToolsInternals.validate(action, args)
 
 
 func _track(
 	action: StringName, actor: StringName, target: StringName,
-	args: Dictionary, result: DotResult
+	args: Dictionary, result: GSResult
 ) -> void:
-	DotModToolsInternals.track(self, action, actor, target, args, result)
+	GSModToolsInternals.track(self, action, actor, target, args, result)
 
 
 func _record(
 	subject: StringName, action: StringName, actor: StringName, target: StringName,
 	detail: Dictionary = {}
 ) -> void:
-	await DotModToolsInternals.record(self, subject, action, actor, target, detail)
+	await GSModToolsInternals.record(self, subject, action, actor, target, detail)
 
 
 func describe() -> Dictionary:
@@ -785,4 +785,4 @@ func _count_tracked() -> int:
 
 
 func describe_lines() -> PackedStringArray:
-	return DotModToolsInternals.describe_lines(self)
+	return GSModToolsInternals.describe_lines(self)

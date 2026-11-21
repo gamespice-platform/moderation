@@ -1,21 +1,21 @@
 @tool
-class_name DotModerationManager
+class_name GSModerationManager
 extends Node
 
 ## Issues, revokes and answers questions about punishments.
 ##
 ## [codeblock]
-## var mod := DotModerationManager.new()
-## mod.store = DotPunishmentStoreFile.new("user://moderation.json")
+## var mod := GSModerationManager.new()
+## mod.store = GSPunishmentStoreFile.new("user://moderation.json")
 ## add_child(mod)
 ## await mod.load_all()
 ##
-## await mod.issue(DotPunishment.Kind.VOICE_MUTE, "uid:1234", "mic spam", "admin:sarah", 3600)
+## await mod.issue(GSPunishment.Kind.VOICE_MUTE, "uid:1234", "mic spam", "admin:sarah", 3600)
 ## mod.is_voice_muted_key("uid:1234")   # true, and still true after they reconnect
 ## [/codeblock]
 ##
 ## [b]The reason this exists next to GameSpice Server's ban manager, which already bans.[/b]
-## GameSpice Server's bans are durable and its mutes are not: `DotClientSession.silence()` sets
+## GameSpice Server's bans are durable and its mutes are not: `GSClientSession.silence()` sets
 ## two booleans on a session object, and a session is destroyed when its player
 ## disconnects. So a muted player reconnects and can talk, which is the first thing
 ## anybody who has been muted tries, and it is the most common complaint on any community
@@ -27,7 +27,7 @@ extends Node
 ## changes; this is what a deployment adds when it wants a mute to mean something.
 ##
 ## [b]It publishes itself as [code]dot_mute_source[/code][/b], which is the name
-## [DotVoiceRouter] looks up. That is the whole integration: neither addon imports the
+## [GSVoiceRouter] looks up. That is the whole integration: neither addon imports the
 ## other, and a project with only one of them works.
 
 const CHANNEL := "moderation"
@@ -41,21 +41,21 @@ const MUTE_SERVICE := &"dot_mute_source"
 ## Same shape as [constant MUTE_SERVICE] and for the same reason: GameSpice Server asks whether
 ## a connecting client may be admitted, this answers, and neither addon names the other.
 ## What is registered here answers
-## [code]check_admission(uid: String, address: String) -> DotResult[/code].
+## [code]check_admission(uid: String, address: String) -> GSResult[/code].
 const BAN_SERVICE := &"dot_ban_source"
 
 ## A punishment was issued.
-signal punished(punishment: DotPunishment)
+signal punished(punishment: GSPunishment)
 
 ## A punishment was lifted early.
-signal revoked(punishment: DotPunishment, by: String)
+signal revoked(punishment: GSPunishment, by: String)
 
 ## A punishment ran out. Emitted when a read notices, not on a timer.
-signal expired(punishment: DotPunishment)
+signal expired(punishment: GSPunishment)
 
 @export_group("Scope")
 
-## What this server calls itself, matched against [member DotPunishment.scope].
+## What this server calls itself, matched against [member GSPunishment.scope].
 ##
 ## Empty means every punishment applies here, which is what one server wants. A community
 ## running a surf server and a deathmatch server sets it so a mute on one need not be a
@@ -88,13 +88,13 @@ signal expired(punishment: DotPunishment)
 ##
 ## [b]On by default, and it is the difference between a ban and a note about one.[/b]
 ## Nothing in this addon can refuse a connection — there is no session list here and no
-## socket — so a [constant DotPunishment.Kind.BAN] recorded with nobody registered is a
+## socket — so a [constant GSPunishment.Kind.BAN] recorded with nobody registered is a
 ## row in a file that stops nothing. A deployment keeping its bans in GameSpice Server's own
-## [code]DotBanManager[/code] instead should turn this off rather than run two lists.
+## [code]GSBanManager[/code] instead should turn this off rather than run two lists.
 @export var register_ban_source: bool = true
 
 ## Where punishments are kept. A file store is created if unset.
-var store: DotPunishmentStore = null
+var store: GSPunishmentStore = null
 
 ## Turns a transport peer id into the durable key a punishment is against.
 ##
@@ -111,7 +111,7 @@ var store: DotPunishmentStore = null
 ## lookup.
 var key_for_peer: Callable = Callable()
 
-## id -> DotPunishment, everything known.
+## id -> GSPunishment, everything known.
 var _records: Dictionary = {}
 ## subject -> Array[String] of ids, so a lookup does not walk every record.
 var _by_subject: Dictionary = {}
@@ -125,40 +125,40 @@ func _ready() -> void:
 		return
 
 	if store == null:
-		store = DotPunishmentStoreFile.new()
+		store = GSPunishmentStoreFile.new()
 
-	DotRegistry.register(SERVICE, self)
+	GSRegistry.register(SERVICE, self)
 
 	if register_mute_source:
-		DotRegistry.register(MUTE_SERVICE, self)
+		GSRegistry.register(MUTE_SERVICE, self)
 		_registered = true
 
 	if register_ban_source:
-		DotRegistry.register(BAN_SERVICE, self)
+		GSRegistry.register(BAN_SERVICE, self)
 		_registered_bans = true
 
 
 func _exit_tree() -> void:
-	DotRegistry.unregister_instance(SERVICE, self)
+	GSRegistry.unregister_instance(SERVICE, self)
 	if _registered:
-		DotRegistry.unregister_instance(MUTE_SERVICE, self)
+		GSRegistry.unregister_instance(MUTE_SERVICE, self)
 	if _registered_bans:
-		DotRegistry.unregister_instance(BAN_SERVICE, self)
+		GSRegistry.unregister_instance(BAN_SERVICE, self)
 
 
 # --- Loading ---------------------------------------------------------------
 
 ## Reads the store. A failure keeps whatever is already in force.
-func load_all() -> DotResult:
+func load_all() -> GSResult:
 	if store == null:
-		return DotResult.fail(DotError.CODE_STATE, "No punishment store.")
+		return GSResult.fail(GSError.CODE_STATE, "No punishment store.")
 
-	var loaded: DotResult = await store.load_all()
+	var loaded: GSResult = await store.load_all()
 
 	if not loaded.ok:
 		# Kept, not cleared. Starting with an empty list on a read error readmits
 		# everybody who was ever removed, silently, which is the worst of both.
-		DotLog.error(CHANNEL, "could not load punishments; keeping what is in force", {
+		GSLog.error(CHANNEL, "could not load punishments; keeping what is in force", {
 			"why": loaded.error.message, "in_force": _records.size()
 		})
 		return loaded
@@ -167,16 +167,16 @@ func load_all() -> DotResult:
 	_by_subject.clear()
 
 	for punishment in (loaded.value as Array):
-		_index(punishment as DotPunishment)
+		_index(punishment as GSPunishment)
 
-	DotLog.info(CHANNEL, "punishments loaded", {
+	GSLog.info(CHANNEL, "punishments loaded", {
 		"records": _records.size(), "store": store.store_name()
 	})
 
-	return DotResult.success(_records.size())
+	return GSResult.success(_records.size())
 
 
-func _index(punishment: DotPunishment) -> void:
+func _index(punishment: GSPunishment) -> void:
 	_records[punishment.id] = punishment
 
 	if not _by_subject.has(punishment.subject):
@@ -196,50 +196,50 @@ func _index(punishment: DotPunishment) -> void:
 ## that exists on one server and nowhere else, which is exactly the split-brain a shared
 ## store is bought to avoid.
 func issue(
-	kind: DotPunishment.Kind,
+	kind: GSPunishment.Kind,
 	subject: String,
 	reason: String,
 	issuer: String = "console",
 	duration_sec: int = 0,
 	issuer_immunity: int = 0,
 	evidence: Dictionary = {}
-) -> DotResult:
+) -> GSResult:
 	if subject.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A punishment needs somebody to be against."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A punishment needs somebody to be against."
 		)
 
-	if DotPunishmentSubject.is_address(subject) \
-		and not DotPunishmentSubject.is_bannable_address(subject):
+	if GSPunishmentSubject.is_address(subject) \
+		and not GSPunishmentSubject.is_bannable_address(subject):
 		# Loopback locks the operator out of their own listen server, and an address the
 		# transport could not report is every client at once. Both are a mistyped
 		# argument far more often than they are a decision.
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"That address cannot be punished.",
-			DotPunishmentSubject.describe(subject)
+			GSPunishmentSubject.describe(subject)
 		)
 
 	if max_duration_sec > 0 and (duration_sec <= 0 or duration_sec > max_duration_sec):
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"That is longer than this server allows.",
 			"asked for %s, limit is %s" % [
 				"permanent" if duration_sec <= 0
-					else DotPunishment.format_duration(duration_sec),
-				DotPunishment.format_duration(max_duration_sec)
+					else GSPunishment.format_duration(duration_sec),
+				GSPunishment.format_duration(max_duration_sec)
 			]
 		)
 
 	var blocking := _immunity_blocking(subject, issuer_immunity)
 	if blocking != null:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"That player is protected by a higher immunity.",
 			"theirs %d, yours %d" % [blocking.issuer_immunity, issuer_immunity]
 		)
 
-	var punishment := DotPunishment.create(
+	var punishment := GSPunishment.create(
 		kind, subject, reason, issuer, duration_sec, server_scope
 	)
 	punishment.issuer_immunity = issuer_immunity
@@ -248,14 +248,14 @@ func issue(
 	punishment.evidence = evidence.duplicate(true)
 
 	if store != null and store.is_writable():
-		var stored: DotResult = await store.put(punishment)
+		var stored: GSResult = await store.put(punishment)
 		if not stored.ok:
 			return stored.wrap("The punishment was not recorded, so it was not applied.")
 	elif store != null:
 		# A legitimate configuration: a server enforcing a centrally managed list. Said
 		# plainly rather than appearing to work and vanishing on the next refresh.
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"This server's punishment store is read only.",
 			"issued centrally; this server enforces rather than adds"
 		)
@@ -263,33 +263,33 @@ func issue(
 	_index(punishment)
 	punished.emit(punishment)
 
-	DotLog.info(CHANNEL, "punished", {
-		"kind": DotPunishment.kind_name(kind),
+	GSLog.info(CHANNEL, "punished", {
+		"kind": GSPunishment.kind_name(kind),
 		"subject": subject,
 		"by": issuer,
 		"for": "permanent" if duration_sec <= 0
-			else DotPunishment.format_duration(duration_sec),
+			else GSPunishment.format_duration(duration_sec),
 	})
 
-	return DotResult.success(punishment)
+	return GSResult.success(punishment)
 
 
 ## Lifts a punishment early, keeping the record.
 func revoke(
 	id: String, by: String = "console", reason: String = "", by_immunity: int = 0
-) -> DotResult:
+) -> GSResult:
 	var punishment: Variant = _records.get(id)
 
 	if punishment == null:
-		return DotResult.fail(
-			DotError.CODE_IO, "No punishment with that id.", id
+		return GSResult.fail(
+			GSError.CODE_IO, "No punishment with that id.", id
 		)
 
-	var typed: DotPunishment = punishment
+	var typed: GSPunishment = punishment
 
 	if typed.revoked:
-		return DotResult.fail(
-			DotError.CODE_STATE, "That punishment has already been lifted."
+		return GSResult.fail(
+			GSError.CODE_STATE, "That punishment has already been lifted."
 		)
 
 	# A junior cannot undo a senior's decision, which is the other half of what immunity
@@ -301,8 +301,8 @@ func revoke(
 	# has not configured immunity at all. Zero means "no immunity to respect", not "the
 	# highest rank there is".
 	if typed.issuer_immunity > 0 and not _may_act_on(by_immunity, typed.issuer_immunity):
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"That was issued by somebody with higher immunity than you.",
 			"theirs %d, yours %d" % [typed.issuer_immunity, by_immunity]
 		)
@@ -313,7 +313,7 @@ func revoke(
 	typed.revoke_reason = reason
 
 	if store != null and store.is_writable():
-		var stored: DotResult = await store.update(typed)
+		var stored: GSResult = await store.update(typed)
 		if not stored.ok:
 			# Rolled back, so what is in memory matches what is on disk. A revoke that
 			# only happened locally comes back on the next load and looks like the
@@ -326,42 +326,42 @@ func revoke(
 
 	revoked.emit(typed, by)
 
-	DotLog.info(CHANNEL, "punishment lifted", {"id": id, "by": by})
+	GSLog.info(CHANNEL, "punishment lifted", {"id": id, "by": by})
 
-	return DotResult.success(typed)
+	return GSResult.success(typed)
 
 
 ## Lifts every active punishment of a kind against a subject. What `unmute` calls.
 func revoke_all(
 	subject: String,
-	kind: DotPunishment.Kind,
+	kind: GSPunishment.Kind,
 	by: String = "console",
 	by_immunity: int = 0
-) -> DotResult:
+) -> GSResult:
 	var lifted := 0
 
 	for punishment in active_for(subject):
 		if punishment.kind != kind:
 			continue
-		var result: DotResult = await revoke(punishment.id, by, "", by_immunity)
+		var result: GSResult = await revoke(punishment.id, by, "", by_immunity)
 		if result.ok:
 			lifted += 1
 
 	if lifted == 0:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"There is nothing of that kind to lift against them.",
 			subject
 		)
 
-	return DotResult.success(lifted)
+	return GSResult.success(lifted)
 
 
 # --- Asking ----------------------------------------------------------------
 
 ## Every punishment against a subject that is in force here, expired ones removed.
-func active_for(subject: String) -> Array[DotPunishment]:
-	var out: Array[DotPunishment] = []
+func active_for(subject: String) -> Array[GSPunishment]:
+	var out: Array[GSPunishment] = []
 	var ids: Variant = _by_subject.get(subject)
 
 	if ids == null:
@@ -370,7 +370,7 @@ func active_for(subject: String) -> Array[DotPunishment]:
 	var now := int(Time.get_unix_time_from_system())
 
 	for id in (ids as PackedStringArray):
-		var punishment: DotPunishment = _records.get(id)
+		var punishment: GSPunishment = _records.get(id)
 		if punishment == null:
 			continue
 		if not punishment.applies_to(server_scope):
@@ -388,26 +388,26 @@ func active_for(subject: String) -> Array[DotPunishment]:
 
 
 ## Everything ever recorded against a subject, newest first. The history is the point.
-func history_for(subject: String) -> Array[DotPunishment]:
-	var out: Array[DotPunishment] = []
+func history_for(subject: String) -> Array[GSPunishment]:
+	var out: Array[GSPunishment] = []
 	var ids: Variant = _by_subject.get(subject)
 
 	if ids == null:
 		return out
 
 	for id in (ids as PackedStringArray):
-		var punishment: DotPunishment = _records.get(id)
+		var punishment: GSPunishment = _records.get(id)
 		if punishment != null:
 			out.append(punishment)
 
 	out.sort_custom(
-		func(a: DotPunishment, b: DotPunishment) -> bool: return a.issued_at > b.issued_at
+		func(a: GSPunishment, b: GSPunishment) -> bool: return a.issued_at > b.issued_at
 	)
 
 	return out
 
 
-func active_of_kind(subject: String, kind: DotPunishment.Kind) -> DotPunishment:
+func active_of_kind(subject: String, kind: GSPunishment.Kind) -> GSPunishment:
 	for punishment in active_for(subject):
 		if punishment.kind == kind:
 			return punishment
@@ -415,15 +415,15 @@ func active_of_kind(subject: String, kind: DotPunishment.Kind) -> DotPunishment:
 
 
 func is_banned_key(subject: String) -> bool:
-	return active_of_kind(subject, DotPunishment.Kind.BAN) != null
+	return active_of_kind(subject, GSPunishment.Kind.BAN) != null
 
 
 func is_voice_muted_key(subject: String) -> bool:
-	return active_of_kind(subject, DotPunishment.Kind.VOICE_MUTE) != null
+	return active_of_kind(subject, GSPunishment.Kind.VOICE_MUTE) != null
 
 
 func is_gagged_key(subject: String) -> bool:
-	return active_of_kind(subject, DotPunishment.Kind.GAG) != null
+	return active_of_kind(subject, GSPunishment.Kind.GAG) != null
 
 
 ## Bans an address, with the port and any decoration stripped off it.
@@ -440,14 +440,14 @@ func ban_address(
 	issuer: String = "console",
 	duration_sec: int = 0,
 	issuer_immunity: int = 0
-) -> DotResult:
-	var subject := DotPunishmentSubject.for_address(address)
+) -> GSResult:
+	var subject := GSPunishmentSubject.for_address(address)
 
 	if subject == "":
-		return DotResult.fail(DotError.CODE_INVALID, "No address given.")
+		return GSResult.fail(GSError.CODE_INVALID, "No address given.")
 
 	return await issue(
-		DotPunishment.Kind.BAN, subject, reason, issuer, duration_sec, issuer_immunity
+		GSPunishment.Kind.BAN, subject, reason, issuer, duration_sec, issuer_immunity
 	)
 
 
@@ -458,19 +458,19 @@ func ban_uid(
 	issuer: String = "console",
 	duration_sec: int = 0,
 	issuer_immunity: int = 0
-) -> DotResult:
-	var subject := DotPunishmentSubject.for_uid(uid)
+) -> GSResult:
+	var subject := GSPunishmentSubject.for_uid(uid)
 
 	if subject == "":
-		return DotResult.fail(DotError.CODE_INVALID, "No account id given.")
+		return GSResult.fail(GSError.CODE_INVALID, "No account id given.")
 
 	return await issue(
-		DotPunishment.Kind.BAN, subject, reason, issuer, duration_sec, issuer_immunity
+		GSPunishment.Kind.BAN, subject, reason, issuer, duration_sec, issuer_immunity
 	)
 
 
 func is_banned_address(address: String) -> bool:
-	var subject := DotPunishmentSubject.for_address(address)
+	var subject := GSPunishmentSubject.for_address(address)
 	return subject != "" and is_banned_key(subject)
 
 
@@ -491,9 +491,9 @@ func is_banned_address(address: String) -> bool:
 ## Returns a failure carrying the player-facing message, including when a temporary ban
 ## lifts. A player who does not know whether they are banned for ten minutes or for ever
 ## keeps reconnecting, which is worse for the server than telling them.
-func check_admission(uid: String, address: String) -> DotResult:
+func check_admission(uid: String, address: String) -> GSResult:
 	if address != "":
-		var by_address := _refusal(DotPunishmentSubject.for_address(address))
+		var by_address := _refusal(GSPunishmentSubject.for_address(address))
 		if by_address != null:
 			return _refuse(by_address)
 
@@ -502,7 +502,7 @@ func check_admission(uid: String, address: String) -> DotResult:
 		# ids or prefixed ones — both are legal subjects and `key_for_peer` returns
 		# whatever the host uses — and checking one spelling enforces nothing for the
 		# other, silently, which is the shape of every expensive bug in this family.
-		var prefixed := DotPunishmentSubject.for_uid(uid)
+		var prefixed := GSPunishmentSubject.for_uid(uid)
 
 		var by_uid := _refusal(prefixed)
 		if by_uid != null:
@@ -513,32 +513,32 @@ func check_admission(uid: String, address: String) -> DotResult:
 			if bare != null:
 				return _refuse(bare)
 
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
-func _refusal(subject: String) -> DotPunishment:
+func _refusal(subject: String) -> GSPunishment:
 	if subject == "":
 		return null
-	return active_of_kind(subject, DotPunishment.Kind.BAN)
+	return active_of_kind(subject, GSPunishment.Kind.BAN)
 
 
-func _refuse(punishment: DotPunishment) -> DotResult:
-	var err := DotError.make(
-		DotError.CODE_FORBIDDEN,
+func _refuse(punishment: GSPunishment) -> GSResult:
+	var err := GSError.make(
+		GSError.CODE_FORBIDDEN,
 		punishment.player_message(),
-		"%s, id %s" % [DotPunishmentSubject.describe(punishment.subject), punishment.id]
+		"%s, id %s" % [GSPunishmentSubject.describe(punishment.subject), punishment.id]
 	)
 	# The record itself, so a caller can log or report on it without looking it up again.
 	# Never sent to the player: it names the moderator, and that is how a moderator gets
 	# harassed.
 	err.context = punishment.to_dictionary()
 
-	return DotResult.failure(err)
+	return GSResult.failure(err)
 
 
 
 
-## Whether a peer may use voice. The method [DotVoiceRouter] duck-types against.
+## Whether a peer may use voice. The method [GSVoiceRouter] duck-types against.
 ##
 ## Takes a peer id and maps it through [member key_for_peer], because that is what a
 ## transport knows and a punishment is against something durable.
@@ -566,7 +566,7 @@ func _subject_for(peer: int) -> String:
 	# find it and quiet enough to leave in.
 	if not _warned_about_mapping:
 		_warned_about_mapping = true
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"no key_for_peer is set, so punishments are keyed on transport peer ids",
 			{
@@ -592,7 +592,7 @@ func _may_act_on(actor_immunity: int, target_immunity: int) -> bool:
 ## Immunity is carried on the record rather than looked up, because the moderator who set
 ## it may not be connected, may have been demoted, or may no longer exist. What matters
 ## is the rank the decision was made at.
-func _immunity_blocking(subject: String, actor_immunity: int) -> DotPunishment:
+func _immunity_blocking(subject: String, actor_immunity: int) -> GSPunishment:
 	for punishment in active_for(subject):
 		if punishment.issuer_immunity > 0 \
 			and not _may_act_on(actor_immunity, punishment.issuer_immunity):
@@ -610,22 +610,22 @@ func active_count() -> int:
 	var now := int(Time.get_unix_time_from_system())
 	var total := 0
 	for key in _records.keys():
-		var punishment: DotPunishment = _records[key]
+		var punishment: GSPunishment = _records[key]
 		if punishment.is_active(now) and punishment.applies_to(server_scope):
 			total += 1
 	return total
 
 
 ## Records whose subject or reason contains [param query].
-func search(query: String) -> Array[DotPunishment]:
+func search(query: String) -> Array[GSPunishment]:
 	var needle := query.strip_edges().to_lower()
-	var out: Array[DotPunishment] = []
+	var out: Array[GSPunishment] = []
 
 	if needle == "":
 		return out
 
 	for key in _records.keys():
-		var punishment: DotPunishment = _records[key]
+		var punishment: GSPunishment = _records[key]
 		if punishment.subject.to_lower().contains(needle) \
 			or punishment.reason.to_lower().contains(needle) \
 			or punishment.id.begins_with(needle):
@@ -640,8 +640,8 @@ func _active_bans() -> int:
 	var total := 0
 
 	for key in _records.keys():
-		var punishment: DotPunishment = _records[key]
-		if punishment.kind == DotPunishment.Kind.BAN \
+		var punishment: GSPunishment = _records[key]
+		if punishment.kind == GSPunishment.Kind.BAN \
 			and punishment.is_active(now) and punishment.applies_to(server_scope):
 			total += 1
 

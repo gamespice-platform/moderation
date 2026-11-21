@@ -1,7 +1,7 @@
-class_name DotModToolsInternals
+class_name GSModToolsInternals
 extends RefCounted
 
-## What [DotModTools] delegates: argument rules, the landing stand-off, tracking, history filing and the report.
+## What [GSModTools] delegates: argument rules, the landing stand-off, tracking, history filing and the report.
 ## Split out of the class so no file passes the size budget; it holds no state of its own.
 
 ## Why [param args] cannot be what [param action] means, or empty.
@@ -13,33 +13,33 @@ static func validate(action: StringName, args: Dictionary) -> String:
 		var value: Variant = args[key]
 		if (value is float or value is int) and not is_finite(float(value)):
 			return "That is not a number anybody can use."
-	if DotModTools.max_seconds > 0.0 and float(args.get("seconds", 0.0)) > DotModTools.max_seconds:
-		return "At most %d seconds." % int(DotModTools.max_seconds)
-	if DotModTools.max_damage > 0.0 and float(args.get("damage", 0.0)) > DotModTools.max_damage:
-		return "At most %d damage; use slay to kill somebody." % int(DotModTools.max_damage)
+	if GSModTools.max_seconds > 0.0 and float(args.get("seconds", 0.0)) > GSModTools.max_seconds:
+		return "At most %d seconds." % int(GSModTools.max_seconds)
+	if GSModTools.max_damage > 0.0 and float(args.get("damage", 0.0)) > GSModTools.max_damage:
+		return "At most %d damage; use slay to kill somebody." % int(GSModTools.max_damage)
 
 	match action:
-		DotModTools.ACTION_HEALTH:
+		GSModTools.ACTION_HEALTH:
 			var value := float(args.get("value", 0.0))
 			if value <= 0.0:
 				return "Health has to be above zero. Use slay to kill somebody."
-		DotModTools.ACTION_SPEED, DotModTools.ACTION_GRAVITY:
+		GSModTools.ACTION_SPEED, GSModTools.ACTION_GRAVITY:
 			if float(args.get("scale", 0.0)) <= 0.0:
 				return "A multiplier has to be above zero."
-		DotModTools.ACTION_SLAP:
+		GSModTools.ACTION_SLAP:
 			if float(args.get("damage", 0.0)) < 0.0:
 				return "A slap cannot heal."
-		DotModTools.ACTION_GIVE:
+		GSModTools.ACTION_GIVE:
 			if str(args.get("item", "")).strip_edges() == "":
 				return "Give what?"
-		DotModTools.ACTION_RENAME:
+		GSModTools.ACTION_RENAME:
 			if str(args.get("name", "")).strip_edges() == "":
 				return "Rename them to what?"
-		DotModTools.ACTION_BURN:
+		GSModTools.ACTION_BURN:
 			if float(args.get("seconds", 0.0)) <= 0.0:
 				return "Burn for how long?"
 
-	if DotModTools.TOGGLES.has(action) and not (args.get("on") is bool):
+	if GSModTools.TOGGLES.has(action) and not (args.get("on") is bool):
 		return "Say whether to turn %s on or off." % String(action)
 
 	return ""
@@ -72,10 +72,10 @@ static func stand_off(destination: Variant, arriving_from: Variant, standoff: fl
 
 
 static func track(
-	t: DotModTools, action: StringName, actor: StringName, target: StringName,
-	args: Dictionary, result: DotResult
+	t: GSModTools, action: StringName, actor: StringName, target: StringName,
+	args: Dictionary, result: GSResult
 ) -> void:
-	if DotModTools.TOGGLES.has(action):
+	if GSModTools.TOGGLES.has(action):
 		var holders: Dictionary = t._toggles.get(action, {})
 
 		if bool(args.get("on", false)):
@@ -90,7 +90,7 @@ static func track(
 		t.toggled.emit(action, target, bool(args.get("on", false)), actor)
 		return
 
-	if DotModTools.MULTIPLIERS.has(action):
+	if GSModTools.MULTIPLIERS.has(action):
 		var applied := float(args.get("scale", 1.0))
 
 		if result.value is float or result.value is int:
@@ -113,7 +113,7 @@ static func track(
 ## Puts the action on somebody's history as a WARN: it enforces nothing and is there to be
 ## read when a player asks why they moved.
 static func record(
-	t: DotModTools, subject: StringName, action: StringName, actor: StringName, target: StringName,
+	t: GSModTools, subject: StringName, action: StringName, actor: StringName, target: StringName,
 	detail: Dictionary = {}
 ) -> void:
 	if not t.record_actions or t.manager == null:
@@ -140,8 +140,8 @@ static func record(
 
 	# The evidence goes in with the record, not onto it afterwards: a store writes what it
 	# was handed, and a detail set after the write reached no store but the file one.
-	var result: DotResult = await t.manager.issue(
-		DotPunishment.Kind.WARN,
+	var result: GSResult = await t.manager.issue(
+		GSPunishment.Kind.WARN,
 		filed_as,
 		"%s by %s" % [String(action), String(actor)],
 		String(actor),
@@ -151,12 +151,12 @@ static func record(
 	)
 
 	if not result.ok:
-		DotLog.debug(DotModTools.CHANNEL, "could not record a moderator action", {
+		GSLog.debug(GSModTools.CHANNEL, "could not record a moderator action", {
 			"why": result.error.message
 		})
 
 
-static func describe_lines(t: DotModTools) -> PackedStringArray:
+static func describe_lines(t: GSModTools) -> PackedStringArray:
 	var out := PackedStringArray()
 
 	out.append("actions   %d taken, %d refused" % [t.actions_taken, t.actions_refused])
@@ -176,7 +176,7 @@ static func describe_lines(t: DotModTools) -> PackedStringArray:
 	out.append("abilities %s" % (", ".join(supported) if not supported.is_empty() else "none"))
 
 	var refused_list := PackedStringArray()
-	for action in DotModTools.ABILITIES:
+	for action in GSModTools.ABILITIES:
 		if not t.supports(action):
 			var why: String = str(t.unsupported_reasons.get(action, ""))
 			refused_list.append(String(action) if why == "" else "%s (%s)" % [String(action), why])
@@ -184,14 +184,14 @@ static func describe_lines(t: DotModTools) -> PackedStringArray:
 	if not refused_list.is_empty():
 		out.append("refused   %s" % "; ".join(refused_list))
 
-	for action in DotModTools.TOGGLES:
+	for action in GSModTools.TOGGLES:
 		var holders: Dictionary = t._toggles.get(action, {})
 		for target: Variant in holders:
 			out.append("on        %s %s, by %s" % [
 				String(action), str(target), str((holders[target] as Dictionary).get("by", "?"))
 			])
 
-	for action in DotModTools.MULTIPLIERS:
+	for action in GSModTools.MULTIPLIERS:
 		var entries: Dictionary = t._multipliers.get(action, {})
 		for target: Variant in entries:
 			var entry: Dictionary = entries[target]

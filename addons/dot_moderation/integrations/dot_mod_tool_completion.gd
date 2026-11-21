@@ -1,7 +1,7 @@
-class_name DotModToolCompletion
+class_name GSModToolCompletion
 extends RefCounted
 
-## Console completion lists for [DotModToolCommands]; no state of its own.
+## Console completion lists for [GSModToolCommands]; no state of its own.
 
 ## Names (and with [param selectors] the @-selectors) that start with [param partial].
 static func players(server: Object, alive_fn: Callable, partial: String, selectors: bool) -> PackedStringArray:

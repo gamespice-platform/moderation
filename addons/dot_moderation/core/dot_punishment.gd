@@ -1,5 +1,5 @@
 @tool
-class_name DotPunishment
+class_name GSPunishment
 extends Resource
 
 ## One moderation action against one player, as a record rather than as a flag.
@@ -13,8 +13,8 @@ extends Resource
 ## reconnects.[/i]
 ##
 ## [codeblock]
-## var mute := DotPunishment.create(
-##     DotPunishment.Kind.VOICE_MUTE, "uid:1234", "mic spam", "admin:sarah", 3600
+## var mute := GSPunishment.create(
+##     GSPunishment.Kind.VOICE_MUTE, "uid:1234", "mic spam", "admin:sarah", 3600
 ## )
 ## [/codeblock]
 
@@ -43,7 +43,7 @@ enum Kind {
 ## minutes and means nothing after a disconnect, so a punishment keyed on one is a
 ## punishment against whoever connects next. What goes here is whatever a deployment
 ## uses as a durable identity: GameSpice User's pseudonymous id, an account uid, or a device
-## id for a guest. [DotModerationManager.key_for_peer] is where that mapping lives.
+## id for a guest. [GSModerationManager.key_for_peer] is where that mapping lives.
 @export var subject: String = ""
 
 ## Shown to the player. The one field they actually read, so it is required.
@@ -89,8 +89,8 @@ static func create(
 	p_issuer: String = "console",
 	duration_sec: int = 0,
 	p_scope: String = ""
-) -> DotPunishment:
-	var punishment := DotPunishment.new()
+) -> GSPunishment:
+	var punishment := GSPunishment.new()
 	punishment.kind = p_kind
 	punishment.subject = p_subject
 	punishment.reason = p_reason
@@ -100,7 +100,7 @@ static func create(
 		punishment.issued_at + duration_sec if duration_sec > 0 else 0
 	)
 	punishment.scope = p_scope
-	punishment.id = DotHash.random_hex(8)
+	punishment.id = GSHash.random_hex(8)
 	return punishment
 
 
@@ -223,23 +223,23 @@ static func format_duration(seconds: int) -> String:
 	return "%dd %dh" % [int(seconds / 86400), int((seconds % 86400) / 3600)]
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if subject.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A punishment needs somebody to be against."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A punishment needs somebody to be against."
 		)
 
 	if id.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "A punishment needs an id.")
+		return GSResult.fail(GSError.CODE_INVALID, "A punishment needs an id.")
 
 	if expires_at != 0 and expires_at <= issued_at:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"A punishment that expires before it was issued enforces nothing.",
 			"issued %d, expires %d" % [issued_at, expires_at]
 		)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func to_dictionary() -> Dictionary:
@@ -274,8 +274,8 @@ func to_dictionary() -> Dictionary:
 	return out
 
 
-static func from_dictionary(data: Dictionary) -> DotPunishment:
-	var punishment := DotPunishment.new()
+static func from_dictionary(data: Dictionary) -> GSPunishment:
+	var punishment := GSPunishment.new()
 
 	punishment.id = str(data.get("id", ""))
 	punishment.kind = kind_from_name(str(data.get("kind", "warn")))
@@ -305,4 +305,4 @@ func describe() -> Dictionary:
 
 
 func _to_string() -> String:
-	return "DotPunishment(%s %s %s)" % [kind_name(kind), subject, id]
+	return "GSPunishment(%s %s %s)" % [kind_name(kind), subject, id]

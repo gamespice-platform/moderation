@@ -1,17 +1,17 @@
-class_name DotModToolCommands
+class_name GSModToolCommands
 extends RefCounted
 
 ## The live tools as console and chat commands, on a GameSpice Server, in one call.
 ##
 ## [codeblock]
-## # from a DotModule's _module_load, or anything holding the server:
-## var commands := DotModToolCommands.install(self, tools, server)
+## # from a GSModule's _module_load, or anything holding the server:
+## var commands := GSModToolCommands.install(self, tools, server)
 ## commands.alive_fn = func(id: StringName) -> bool: return game.is_alive(int(id))
 ## [/codeblock]
 ##
-## [b]Duck-typed, in the shape [code]DotVoteCommands[/code] set.[/b] The host is anything
-## with [code]add_command[/code] (a [code]DotModule[/code], which then removes every one of
-## them on unload) or [code]command[/code] (a [code]DotConsole[/code]); the server is
+## [b]Duck-typed, in the shape [code]GSVoteCommands[/code] set.[/b] The host is anything
+## with [code]add_command[/code] (a [code]GSModule[/code], which then removes every one of
+## them on unload) or [code]command[/code] (a [code]GSConsole[/code]); the server is
 ## anything with [code]resolve_target[/code], [code]find_sessions[/code] and
 ## [code]playing_sessions[/code]; a command context is anything with [code]args[/code],
 ## [code]session[/code] and [code]reply[/code]. So this file names no GameSpice Server class and
@@ -33,13 +33,13 @@ extends RefCounted
 ##
 ## [b]Every command is registered whether or not this game supports it.[/b] A
 ## [code]!noclip[/code] in a 2D lobby answers with the game's reason, from
-## [member DotModTools.unsupported_reasons]; a command that did not exist would answer
+## [member GSModTools.unsupported_reasons]; a command that did not exist would answer
 ## "unknown command", which is a worse sentence about a better-defined situation.
 
 const CHANNEL := "moderation.commands"
 
 ## The permission names this file hands the console. Spelled out rather than read off
-## GameSpice Server's `DotAdminFlags`, which this addon may not name; the strings are the same.
+## GameSpice Server's `GSAdminFlags`, which this addon may not name; the strings are the same.
 const FLAG_CHEATS := "cheats"
 const FLAG_SLAY := "slay"
 const FLAG_TELEPORT := "teleport"
@@ -80,15 +80,15 @@ const COMMANDS := {
 
 ## Toggles, and which ability each command drives.
 const TOGGLE_ROLES := {
-	"noclip": DotModTools.ACTION_NOCLIP,
-	"god": DotModTools.ACTION_GOD,
-	"buddha": DotModTools.ACTION_BUDDHA,
-	"blind": DotModTools.ACTION_BLIND,
-	"beacon": DotModTools.ACTION_BEACON,
+	"noclip": GSModTools.ACTION_NOCLIP,
+	"god": GSModTools.ACTION_GOD,
+	"buddha": GSModTools.ACTION_BUDDHA,
+	"blind": GSModTools.ACTION_BLIND,
+	"beacon": GSModTools.ACTION_BEACON,
 }
 
 ## Toggles that also take a number of seconds in place of on|off, released by
-## [method DotModTools.release_after] when it runs out — freeze's rule, for the toggles a
+## [method GSModTools.release_after] when it runs out — freeze's rule, for the toggles a
 ## moderator means as a spell rather than as a state.
 ##
 ## [b]Only where the player is a required argument.[/b] `noclip 5` already means "noclip
@@ -115,7 +115,7 @@ const DONE := {
 	"bring": "brought", "goto": "visited", "send": "sent", "return": "returned",
 }
 
-var tools: DotModTools = null
+var tools: GSModTools = null
 
 ## The server. Duck-typed: `resolve_target(ctx, text)`, `find_sessions(text, caller)`,
 ## `playing_sessions()`, and optionally `chat` and `audit`.
@@ -165,8 +165,8 @@ var registered: PackedStringArray = PackedStringArray()
 var collided: PackedStringArray = PackedStringArray()
 
 
-static func install(host: Object, p_tools: DotModTools, p_server: Object) -> DotModToolCommands:
-	var commands := DotModToolCommands.new()
+static func install(host: Object, p_tools: GSModTools, p_server: Object) -> GSModToolCommands:
+	var commands := GSModToolCommands.new()
 	commands.tools = p_tools
 	commands.server = p_server
 	var _res := commands.bind(host)
@@ -187,10 +187,10 @@ func permission_for(role: String) -> String:
 
 
 ## Registers everything on [param host].
-func bind(host: Object) -> DotResult:
+func bind(host: Object) -> GSResult:
 	if host == null or tools == null or server == null:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A host, the tools and a server are all needed."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A host, the tools and a server are all needed."
 		)
 
 	var adder := ""
@@ -200,10 +200,10 @@ func bind(host: Object) -> DotResult:
 	elif host.has_method("command"):
 		adder = "command"
 	else:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"That host has no way to register a command.",
-			"expected a DotModule (add_command) or a DotConsole (command)"
+			"expected a GSModule (add_command) or a GSConsole (command)"
 		)
 
 	var console := _console_of(host)
@@ -219,7 +219,7 @@ func bind(host: Object) -> DotResult:
 
 		# [b]Checked before registering, not left to the console.[/b] A console that is
 		# handed a name it already has warns and returns the EXISTING command — and a
-		# DotModule records the name anyway and unregisters it on unload, which would remove
+		# GSModule records the name anyway and unregisters it on unload, which would remove
 		# somebody else's command. A game with its own `respawn` keeps it.
 		if console != null and console.has_method("has_name") and bool(console.call("has_name", full)):
 			collided.append(full)
@@ -247,15 +247,15 @@ func bind(host: Object) -> DotResult:
 		registered.append(full)
 
 	if not collided.is_empty():
-		DotLog.warn(CHANNEL, "some mod tool commands were already taken and are not registered", {
+		GSLog.warn(CHANNEL, "some mod tool commands were already taken and are not registered", {
 			"names": ", ".join(collided),
 		})
 
-	DotLog.info(CHANNEL, "mod tool commands registered", {
+	GSLog.info(CHANNEL, "mod tool commands registered", {
 		"count": registered.size(), "abilities": ", ".join(tools.abilities()),
 	})
 
-	return DotResult.success(registered)
+	return GSResult.success(registered)
 
 
 ## Removes what [method bind] registered, from a console host. A module host does this
@@ -328,7 +328,7 @@ func _run(role: String, ctx: Object) -> void:
 			])
 			continue
 
-		var result: DotResult = await _apply(role, ctx, actor, actor_level, id, rest)
+		var result: GSResult = await _apply(role, ctx, actor, actor_level, id, rest)
 		var shown := str(session.get("display_name"))
 
 		if not result.ok:
@@ -375,7 +375,7 @@ func _said_args(rest: Array, applied: Array) -> Array:
 func _apply(
 	role: String, ctx: Object, actor: StringName, actor_level: int,
 	id: StringName, rest: Array
-) -> DotResult:
+) -> GSResult:
 	if TOGGLE_ROLES.has(role):
 		var action: StringName = TOGGLE_ROLES[role]
 		var want: Variant = _parse_switch(str(rest[0])) if rest.size() > 0 else null
@@ -383,13 +383,13 @@ func _apply(
 
 		if rest.size() > 0 and want == null and timed and _number(rest, 0, 0.0) > 0.0:
 			var seconds := _number(rest, 0, 0.0)
-			var held: DotResult = await tools.toggle(actor, id, action, true, actor_level)
+			var held: GSResult = await tools.toggle(actor, id, action, true, actor_level)
 			if held.ok:
 				tools.release_after(id, action, seconds)
 			return held
 
 		if rest.size() > 0 and want == null:
-			return DotResult.fail(DotError.CODE_INVALID, (
+			return GSResult.fail(GSError.CODE_INVALID, (
 				"Say on, off or a number of seconds, not '%s'." if timed
 				else "Say on or off, not '%s'."
 			) % str(rest[0]))
@@ -399,53 +399,53 @@ func _apply(
 	match role:
 		"freeze":
 			var seconds := _number(rest, 0, 0.0)
-			var frozen: DotResult = await tools.toggle(
-				actor, id, DotModTools.ACTION_FREEZE, true, actor_level
+			var frozen: GSResult = await tools.toggle(
+				actor, id, GSModTools.ACTION_FREEZE, true, actor_level
 			)
 			if frozen.ok and seconds > 0.0:
-				tools.release_after(id, DotModTools.ACTION_FREEZE, seconds)
+				tools.release_after(id, GSModTools.ACTION_FREEZE, seconds)
 			return frozen
 		"unfreeze":
-			return await tools.toggle(actor, id, DotModTools.ACTION_FREEZE, false, actor_level)
+			return await tools.toggle(actor, id, GSModTools.ACTION_FREEZE, false, actor_level)
 		"slay":
-			return await tools.perform(actor, id, DotModTools.ACTION_SLAY, {}, actor_level)
+			return await tools.perform(actor, id, GSModTools.ACTION_SLAY, {}, actor_level)
 		"slap":
 			return await tools.perform(
-				actor, id, DotModTools.ACTION_SLAP, {"damage": _number(rest, 0, 0.0)}, actor_level
+				actor, id, GSModTools.ACTION_SLAP, {"damage": _number(rest, 0, 0.0)}, actor_level
 			)
 		"respawn":
-			return await tools.perform(actor, id, DotModTools.ACTION_RESPAWN, {}, actor_level)
+			return await tools.perform(actor, id, GSModTools.ACTION_RESPAWN, {}, actor_level)
 		"rename":
 			return await tools.perform(
-				actor, id, DotModTools.ACTION_RENAME, {"name": " ".join(rest)}, actor_level
+				actor, id, GSModTools.ACTION_RENAME, {"name": " ".join(rest)}, actor_level
 			)
 		"burn":
 			return await tools.perform(
-				actor, id, DotModTools.ACTION_BURN, {"seconds": _number(rest, 0, 5.0)}, actor_level
+				actor, id, GSModTools.ACTION_BURN, {"seconds": _number(rest, 0, 5.0)}, actor_level
 			)
 		"hp":
 			if rest.is_empty() or not str(rest[0]).is_valid_float():
-				return DotResult.fail(DotError.CODE_INVALID, "Give a number for their health.")
+				return GSResult.fail(GSError.CODE_INVALID, "Give a number for their health.")
 			return await tools.perform(
-				actor, id, DotModTools.ACTION_HEALTH, {"value": str(rest[0]).to_float()}, actor_level
+				actor, id, GSModTools.ACTION_HEALTH, {"value": str(rest[0]).to_float()}, actor_level
 			)
 		"speed", "gravity":
 			if rest.is_empty() or not str(rest[0]).is_valid_float():
-				return DotResult.fail(DotError.CODE_INVALID, "Give a multiplier; 1 is normal.")
-			var action := DotModTools.ACTION_SPEED if role == "speed" else DotModTools.ACTION_GRAVITY
+				return GSResult.fail(GSError.CODE_INVALID, "Give a multiplier; 1 is normal.")
+			var action := GSModTools.ACTION_SPEED if role == "speed" else GSModTools.ACTION_GRAVITY
 			return await tools.perform(
 				actor, id, action, {"scale": str(rest[0]).to_float()}, actor_level
 			)
 		"give":
 			return await tools.perform(
-				actor, id, DotModTools.ACTION_GIVE, {"item": " ".join(rest)}, actor_level
+				actor, id, GSModTools.ACTION_GIVE, {"item": " ".join(rest)}, actor_level
 			)
 		"strip":
-			return await tools.perform(actor, id, DotModTools.ACTION_STRIP, {}, actor_level)
+			return await tools.perform(actor, id, GSModTools.ACTION_STRIP, {}, actor_level)
 		"bring":
 			return await tools.bring(actor, id, actor_level)
 		"goto":
-			# The caller moves, so no immunity check (DotModTools.goto's rule).
+			# The caller moves, so no immunity check (GSModTools.goto's rule).
 			return await tools.goto(actor, id)
 		"send":
 			# A destination, not a target: a moderator may send somebody TO an admin.
@@ -456,12 +456,12 @@ func _apply(
 		"return":
 			return await tools.return_player(actor, id, actor_level)
 
-	return DotResult.fail(DotError.CODE_UNSUPPORTED, "Unknown mod tool '%s'." % role)
+	return GSResult.fail(GSError.CODE_UNSUPPORTED, "Unknown mod tool '%s'." % role)
 
 
 ## What has to happen outside the tools once an action lands.
 func _after(
-	role: String, _ctx: Object, session: Object, id: StringName, result: DotResult, rest: Array
+	role: String, _ctx: Object, session: Object, id: StringName, result: GSResult, rest: Array
 ) -> void:
 	# Chat, `status` and the scoreboard read `display_name`, so the server must learn a rename too.
 	if role == "rename" and "display_name" in session:
@@ -541,7 +541,7 @@ func _summary(role: String, rest: Array, switch_word: String = "") -> String:
 
 
 ## What the player is told. Never who did it.
-func _target_line(role: String, id: StringName, result: DotResult, rest: Array) -> String:
+func _target_line(role: String, id: StringName, result: GSResult, rest: Array) -> String:
 	if TOGGLE_ROLES.has(role):
 		var action: StringName = TOGGLE_ROLES[role]
 		return "An admin turned %s %s for you." % [
@@ -584,17 +584,17 @@ func _status(ctx: Object, args: PackedStringArray) -> void:
 # --- Targets -----------------------------------------------------------------
 
 ## A player named as a place, with no immunity asked: exactly one match, or a refusal.
-func _destination(ctx: Object, text: String) -> DotResult:
+func _destination(ctx: Object, text: String) -> GSResult:
 	if text.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "Send them to whom?")
+		return GSResult.fail(GSError.CODE_INVALID, "Send them to whom?")
 
 	if server.has_method("find_sessions"):
 		var matches: Variant = server.call("find_sessions", text, ctx.get("session"))
 		if matches is Array and (matches as Array).size() == 1:
-			return DotResult.success((matches as Array)[0])
+			return GSResult.success((matches as Array)[0])
 		if matches is Array and (matches as Array).size() > 1:
-			return DotResult.fail(DotError.CODE_INVALID, "More than one player matches '%s'." % text)
-		return DotResult.fail(DotError.CODE_INVALID, "Nobody matches '%s'." % text)
+			return GSResult.fail(GSError.CODE_INVALID, "More than one player matches '%s'." % text)
+		return GSResult.fail(GSError.CODE_INVALID, "Nobody matches '%s'." % text)
 
 	return _single(ctx, text)
 
@@ -619,18 +619,18 @@ func _subject_of(id: StringName) -> String:
 
 
 ## Who a command acts on: `{sessions: Array, skipped: int}`.
-func _targets(ctx: Object, text: String) -> DotResult:
+func _targets(ctx: Object, text: String) -> GSResult:
 	var lowered := text.strip_edges().to_lower()
 	var caller: Variant = ctx.get("session")
 
 	if lowered == "" or lowered == "@me" or lowered == "@self":
 		if caller == null:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"The console has no body to act on. Name a player.",
 				"@all, @alive, @dead, @others, @team:<name>, or a name"
 			)
-		return DotResult.success({"sessions": [caller], "skipped": 0})
+		return GSResult.success({"sessions": [caller], "skipped": 0})
 
 	if lowered.begins_with("@") and not lowered.begins_with("@ip:"):
 		return _group(ctx, lowered)
@@ -640,31 +640,31 @@ func _targets(ctx: Object, text: String) -> DotResult:
 	if not one.ok:
 		return one
 
-	return DotResult.success({"sessions": [one.value], "skipped": 0})
+	return GSResult.success({"sessions": [one.value], "skipped": 0})
 
 
 ## One player, by any form GameSpice Server understands, immunity checked the way kick checks it.
-func _single(ctx: Object, text: String) -> DotResult:
+func _single(ctx: Object, text: String) -> GSResult:
 	var caller: Variant = ctx.get("session")
 
 	if text.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "Name a player.")
+		return GSResult.fail(GSError.CODE_INVALID, "Name a player.")
 
 	# Yourself first, so that naming yourself is not refused for immunity — see the class note.
 	if caller != null and server.has_method("find_sessions"):
 		var matches: Variant = server.call("find_sessions", text, caller)
 		if matches is Array and (matches as Array).size() == 1 and (matches as Array)[0] == caller:
-			return DotResult.success(caller)
+			return GSResult.success(caller)
 
 	var resolved: Variant = server.call("resolve_target", ctx, text)
 
-	if resolved is DotResult:
+	if resolved is GSResult:
 		return resolved
 
-	return DotResult.fail(DotError.CODE_STATE, "The server could not resolve '%s'." % text)
+	return GSResult.fail(GSError.CODE_STATE, "The server could not resolve '%s'." % text)
 
 
-func _group(ctx: Object, selector: String) -> DotResult:
+func _group(ctx: Object, selector: String) -> GSResult:
 	var everyone: Variant = server.call("playing_sessions") if server.has_method("playing_sessions") else []
 	var caller: Variant = ctx.get("session")
 	var picked: Array = []
@@ -678,8 +678,8 @@ func _group(ctx: Object, selector: String) -> DotResult:
 					picked.append(session)
 		"@alive", "@dead":
 			if not alive_fn.is_valid():
-				return DotResult.fail(
-					DotError.CODE_UNSUPPORTED, "This game does not say who is alive."
+				return GSResult.fail(
+					GSError.CODE_UNSUPPORTED, "This game does not say who is alive."
 				)
 			var want_alive := selector == "@alive"
 			for session: Variant in everyone:
@@ -687,13 +687,13 @@ func _group(ctx: Object, selector: String) -> DotResult:
 					picked.append(session)
 		_:
 			if not selector.begins_with("@team:"):
-				return DotResult.fail(
-					DotError.CODE_INVALID,
+				return GSResult.fail(
+					GSError.CODE_INVALID,
 					"Unknown selector '%s'." % selector,
 					"@me, @all, @others, @alive, @dead, @team:<name>"
 				)
 			if not team_fn.is_valid():
-				return DotResult.fail(DotError.CODE_UNSUPPORTED, "This game has no teams.")
+				return GSResult.fail(GSError.CODE_UNSUPPORTED, "This game has no teams.")
 			var wanted := selector.substr(6)
 			for session: Variant in everyone:
 				if str(team_fn.call(_id_of(session as Object))).to_lower() == wanted:
@@ -710,7 +710,7 @@ func _group(ctx: Object, selector: String) -> DotResult:
 		else:
 			skipped += 1
 
-	return DotResult.success({"sessions": allowed, "skipped": skipped})
+	return GSResult.success({"sessions": allowed, "skipped": skipped})
 
 
 # --- Completion ----------------------------------------------------------------
@@ -718,15 +718,15 @@ func _group(ctx: Object, selector: String) -> DotResult:
 func _completer_for(role: String) -> Callable:
 	return func(partial: String, index: int) -> PackedStringArray:
 		if index == 0 and role != "modtools":
-			return DotModToolCompletion.players(server, alive_fn, partial, true)
+			return GSModToolCompletion.players(server, alive_fn, partial, true)
 		if index == 0:
-			return DotModToolCompletion.players(server, alive_fn, partial, false)
+			return GSModToolCompletion.players(server, alive_fn, partial, false)
 		if index == 1 and role == "send":
-			return DotModToolCompletion.players(server, alive_fn, partial, false)
+			return GSModToolCompletion.players(server, alive_fn, partial, false)
 		if index == 1 and role == "give" and items_fn.is_valid():
-			return DotModToolCompletion.from_list(items_fn.call(), partial)
+			return GSModToolCompletion.from_list(items_fn.call(), partial)
 		if index == 1 and TOGGLE_ROLES.has(role):
-			return DotModToolCompletion.from_list(PackedStringArray(["on", "off"]), partial)
+			return GSModToolCompletion.from_list(PackedStringArray(["on", "off"]), partial)
 		return PackedStringArray()
 
 

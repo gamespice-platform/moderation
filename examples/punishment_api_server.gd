@@ -1,6 +1,6 @@
 extends Node
 
-## A punishment API in a hundred lines, so [DotPunishmentStoreRest] is tested for real.
+## A punishment API in a hundred lines, so [GSPunishmentStoreRest] is tested for real.
 ##
 ## [b]Why this exists.[/b] The REST store is the one a community actually reaches for,
 ## because most of them already have a ban system and are not going to migrate it. It is
@@ -14,7 +14,7 @@ extends Node
 ## from.
 ##
 ## It is deliberately not production code and does not live in `addons/`. It speaks
-## exactly as much HTTP as [DotHttp] asks for, and every fault it can inject exists
+## exactly as much HTTP as [GSHttp] asks for, and every fault it can inject exists
 ## because a branch in the store needs it.
 
 ## id -> punishment dictionary. The API's whole database.
@@ -42,18 +42,18 @@ var _server: TCPServer = null
 var _clients: Array[Dictionary] = []
 
 
-func start(requested_port: int = 0) -> DotResult:
+func start(requested_port: int = 0) -> GSResult:
 	_server = TCPServer.new()
 
 	var error := _server.listen(requested_port, "127.0.0.1")
 
 	if error != OK:
-		return DotResult.failure(DotError.from_engine(error, "listen"))
+		return GSResult.failure(GSError.from_engine(error, "listen"))
 
 	port = _server.get_local_port()
 	set_process(true)
 
-	return DotResult.success(port)
+	return GSResult.success(port)
 
 
 func base_url() -> String:

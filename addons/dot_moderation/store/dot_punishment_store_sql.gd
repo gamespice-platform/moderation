@@ -1,18 +1,18 @@
 @tool
-class_name DotPunishmentStoreSql
-extends DotPunishmentStore
+class_name GSPunishmentStoreSql
+extends GSPunishmentStore
 
 ## Punishments in a real table, in whichever SQL a GameSpice SQL driver speaks.
 ##
 ## [codeblock]
-## var store := DotPunishmentStoreSql.new(DotSqlDriverSqlite.new("user://moderation.db"))
+## var store := GSPunishmentStoreSql.new(GSSqlDriverSqlite.new("user://moderation.db"))
 ## var opened := await store.open()      # creates or migrates the table
 ## [/codeblock]
 ##
 ## [b]The driver is duck-typed[/b] — held untyped and asked for `query`, `execute`,
 ## `upsert_sql` and `migrate` — so GameSpice Moderation does not depend on GameSpice SQL and parses in
 ## a project without it. Any object with those methods will do; GameSpice SQL's are the ones that
-## exist. The table is [method DotPunishmentSchema.table_spec], rendered by the driver for
+## exist. The table is [method GSPunishmentSchema.table_spec], rendered by the driver for
 ## its own dialect, so this class contains no `if postgres` anywhere.
 ##
 ## [b]Statements are parameterised, always.[/b] A ban reason is typed by a moderator and
@@ -24,7 +24,7 @@ extends DotPunishmentStore
 var driver = null
 
 ## Table name, in case an operator already owns `punishments`.
-var table: String = DotPunishmentSchema.DEFAULT_TABLE
+var table: String = GSPunishmentSchema.DEFAULT_TABLE
 
 ## Create or migrate the table on [method open].
 ##
@@ -51,39 +51,39 @@ func is_writable() -> bool:
 
 
 ## Opens the driver and, unless told not to, creates the table.
-func open() -> DotResult:
+func open() -> GSResult:
 	if driver == null:
-		return DotResult.fail(DotError.CODE_STATE, "No SQL driver.")
+		return GSResult.fail(GSError.CODE_STATE, "No SQL driver.")
 
-	var available: DotResult = driver.is_available()
+	var available: GSResult = driver.is_available()
 	if not available.ok:
 		return available
 
-	var opened: DotResult = await driver.open()
+	var opened: GSResult = await driver.open()
 	if not opened.ok:
 		return opened
 
 	if not create_schema:
-		return DotResult.success(true)
+		return GSResult.success(true)
 
 	# Versioned rather than "create if missing": a database from an older build is
 	# brought forward, and one from a NEWER build is refused rather than read with
 	# columns that have changed meaning underneath it. One component per table, so two
 	# stores with different table names in one database keep separate versions.
-	var migrated: DotResult = await driver.migrate(
-		"%s:%s" % [DotPunishmentSchema.MIGRATION_COMPONENT, table],
-		DotPunishmentSchema.migration_steps(table)
+	var migrated: GSResult = await driver.migrate(
+		"%s:%s" % [GSPunishmentSchema.MIGRATION_COMPONENT, table],
+		GSPunishmentSchema.migration_steps(table)
 	)
 
 	if not migrated.ok:
 		return migrated.wrap("Could not prepare the punishment table.")
 
-	DotLog.info(CHANNEL, "punishment table ready", {
-		"dialect": DotPunishmentSchema.dialect_name(int(driver.dialect())),
+	GSLog.info(CHANNEL, "punishment table ready", {
+		"dialect": GSPunishmentSchema.dialect_name(int(driver.dialect())),
 		"table": table,
 	})
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func close() -> void:
@@ -91,22 +91,22 @@ func close() -> void:
 		driver.close()
 
 
-func load_all() -> DotResult:
+func load_all() -> GSResult:
 	if driver == null or not driver.is_open():
-		return DotResult.fail(DotError.CODE_STATE, "The database is not open.")
+		return GSResult.fail(GSError.CODE_STATE, "The database is not open.")
 
-	var result: DotResult = await driver.query(
-		DotPunishmentSchema.select_all(table), []
+	var result: GSResult = await driver.query(
+		GSPunishmentSchema.select_all(table), []
 	)
 
 	if not result.ok:
 		return result.wrap("Could not read the punishment table.")
 
-	var loaded: Array[DotPunishment] = []
+	var loaded: Array[GSPunishment] = []
 	var skipped := 0
 
 	for row in (result.value as Array):
-		var punishment := DotPunishmentSchema.from_row(row)
+		var punishment := GSPunishmentSchema.from_row(row)
 
 		if punishment == null:
 			skipped += 1
@@ -118,7 +118,7 @@ func load_all() -> DotResult:
 			# One bad row does not condemn the table, for the same reason one bad entry
 			# does not condemn the JSON file: a community with fifty thousand records
 			# and one hand-edited row should moderate with the rest and be told which.
-			DotLog.warn(CHANNEL, "skipping an unusable row", {
+			GSLog.warn(CHANNEL, "skipping an unusable row", {
 				"why": valid.error.message, "id": punishment.id
 			})
 			skipped += 1
@@ -129,11 +129,11 @@ func load_all() -> DotResult:
 	loads += 1
 
 	if skipped > 0:
-		DotLog.warn(CHANNEL, "the punishment table had unusable rows", {
+		GSLog.warn(CHANNEL, "the punishment table had unusable rows", {
 			"skipped": skipped, "loaded": loaded.size()
 		})
 
-	return DotResult.success(loaded)
+	return GSResult.success(loaded)
 
 
 ## Reads only what is against one subject.
@@ -143,66 +143,66 @@ func load_all() -> DotResult:
 ## deployment with a shared database uses this rather than caching everything, so a mute
 ## set on another server is in force here on the next connection rather than on the next
 ## restart.
-func load_for(subject: String) -> DotResult:
+func load_for(subject: String) -> GSResult:
 	if driver == null or not driver.is_open():
-		return DotResult.fail(DotError.CODE_STATE, "The database is not open.")
+		return GSResult.fail(GSError.CODE_STATE, "The database is not open.")
 
-	var result: DotResult = await driver.query(
-		DotPunishmentSchema.select_by_subject(table), [subject]
+	var result: GSResult = await driver.query(
+		GSPunishmentSchema.select_by_subject(table), [subject]
 	)
 
 	if not result.ok:
 		return result.wrap("Could not read punishments for a player.")
 
-	var loaded: Array[DotPunishment] = []
+	var loaded: Array[GSPunishment] = []
 
 	for row in (result.value as Array):
-		var punishment := DotPunishmentSchema.from_row(row)
+		var punishment := GSPunishmentSchema.from_row(row)
 		if punishment != null and punishment.validate().ok:
 			loaded.append(punishment)
 
-	return DotResult.success(loaded)
+	return GSResult.success(loaded)
 
 
-func put(punishment: DotPunishment) -> DotResult:
+func put(punishment: GSPunishment) -> GSResult:
 	if punishment == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No punishment to store.")
+		return GSResult.fail(GSError.CODE_INVALID, "No punishment to store.")
 
 	var valid := punishment.validate()
 	if not valid.ok:
 		return valid
 
 	if driver == null or not driver.is_open():
-		return DotResult.fail(DotError.CODE_STATE, "The database is not open.")
+		return GSResult.fail(GSError.CODE_STATE, "The database is not open.")
 
 	# An upsert, not an insert. A retry after a network failure must not produce two
 	# records for one action, which is how a duplicate ban ends up in somebody's history
 	# and how a revoke ends up applying to only one of them.
-	var result: DotResult = await driver.execute(
-		driver.upsert_sql(table, PackedStringArray(DotPunishmentSchema.COLUMNS), PackedStringArray(["id"])),
-		DotPunishmentSchema.to_row(punishment)
+	var result: GSResult = await driver.execute(
+		driver.upsert_sql(table, PackedStringArray(GSPunishmentSchema.COLUMNS), PackedStringArray(["id"])),
+		GSPunishmentSchema.to_row(punishment)
 	)
 
 	if not result.ok:
 		return result.wrap("Could not write the punishment.")
 
 	writes += 1
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func remove(id: String) -> DotResult:
+func remove(id: String) -> GSResult:
 	if driver == null or not driver.is_open():
-		return DotResult.fail(DotError.CODE_STATE, "The database is not open.")
+		return GSResult.fail(GSError.CODE_STATE, "The database is not open.")
 
-	var result: DotResult = await driver.execute(
-		DotPunishmentSchema.delete_by_id(table), [id]
+	var result: GSResult = await driver.execute(
+		GSPunishmentSchema.delete_by_id(table), [id]
 	)
 
 	if not result.ok:
 		return result.wrap("Could not remove the punishment.")
 
 	writes += 1
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func describe() -> Dictionary:
@@ -210,7 +210,7 @@ func describe() -> Dictionary:
 		"store": store_name(),
 		"writable": is_writable(),
 		"table": table,
-		"dialect": DotPunishmentSchema.dialect_name(int(driver.dialect()) if driver != null else -1),
+		"dialect": GSPunishmentSchema.dialect_name(int(driver.dialect()) if driver != null else -1),
 		"loads": loads,
 		"writes": writes,
 		"driver": driver.describe() if driver != null else {},

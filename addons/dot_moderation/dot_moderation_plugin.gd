@@ -12,12 +12,12 @@ const _ICON := "res://addons/dot_moderation/icon_placeholder.svg"
 
 const _TYPES := [
 	[
-		"DotModerationManager",
+		"GSModerationManager",
 		"Node",
 		"res://addons/dot_moderation/runtime/dot_moderation_manager.gd",
 	],
 	[
-		"DotModTools",
+		"GSModTools",
 		"Node",
 		"res://addons/dot_moderation/tools/dot_mod_tools.gd",
 	],

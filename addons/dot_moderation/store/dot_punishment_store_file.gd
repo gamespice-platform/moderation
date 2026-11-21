@@ -1,6 +1,6 @@
 @tool
-class_name DotPunishmentStoreFile
-extends DotPunishmentStore
+class_name GSPunishmentStoreFile
+extends GSPunishmentStore
 
 ## Punishments in a JSON file, which is right for one server and wrong for eight.
 ##
@@ -23,7 +23,7 @@ var path: String = "user://moderation.json"
 var loads: int = 0
 var writes: int = 0
 
-## Everything read or written, id -> DotPunishment. The file is the truth; this is a
+## Everything read or written, id -> GSPunishment. The file is the truth; this is a
 ## cache so a write does not have to re-read.
 var _records: Dictionary = {}
 
@@ -40,15 +40,15 @@ func is_writable() -> bool:
 	return true
 
 
-func load_all() -> DotResult:
+func load_all() -> GSResult:
 	if not FileAccess.file_exists(path):
 		# Not an error. A server that has never punished anybody has no file, and
 		# treating that as a failure would make every fresh install look broken.
 		_records.clear()
 		loads += 1
-		return DotResult.success([])
+		return GSResult.success([])
 
-	var read := DotPaths.read_text(path)
+	var read := GSPaths.read_text(path)
 
 	if not read.ok:
 		return read.wrap("Could not read the moderation file.")
@@ -59,8 +59,8 @@ func load_all() -> DotResult:
 		# [b]Loud, and the caller keeps what it has.[/b] Silently meaning "nobody is
 		# punished" turns a typo into an unmoderated server, which is the same reasoning
 		# GameSpice Server's admin file uses.
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The moderation file is not a JSON object.",
 			path
 		)
@@ -69,13 +69,13 @@ func load_all() -> DotResult:
 	var version := int(document.get("format_version", 1))
 
 	if version > FORMAT_VERSION:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"The moderation file was written by a newer version of dot-moderation.",
 			"file says %d, this build reads %d" % [version, FORMAT_VERSION]
 		)
 
-	var loaded: Array[DotPunishment] = []
+	var loaded: Array[GSPunishment] = []
 	var skipped := 0
 
 	var entries: Variant = document.get("punishments", [])
@@ -86,7 +86,7 @@ func load_all() -> DotResult:
 				skipped += 1
 				continue
 
-			var punishment := DotPunishment.from_dictionary(entry as Dictionary)
+			var punishment := GSPunishment.from_dictionary(entry as Dictionary)
 			var valid := punishment.validate()
 
 			if not valid.ok:
@@ -94,7 +94,7 @@ func load_all() -> DotResult:
 				# catalogue tolerates one: a server with nine hundred good records and
 				# one typo should moderate with the nine hundred and say which one it
 				# dropped.
-				DotLog.warn(CHANNEL, "skipping an unusable punishment", {
+				GSLog.warn(CHANNEL, "skipping an unusable punishment", {
 					"why": valid.error.message
 				})
 				skipped += 1
@@ -109,16 +109,16 @@ func load_all() -> DotResult:
 	loads += 1
 
 	if skipped > 0:
-		DotLog.warn(CHANNEL, "the moderation file had unusable entries", {
+		GSLog.warn(CHANNEL, "the moderation file had unusable entries", {
 			"skipped": skipped, "loaded": loaded.size(), "path": path
 		})
 
-	return DotResult.success(loaded)
+	return GSResult.success(loaded)
 
 
-func put(punishment: DotPunishment) -> DotResult:
+func put(punishment: GSPunishment) -> GSResult:
 	if punishment == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No punishment to store.")
+		return GSResult.fail(GSError.CODE_INVALID, "No punishment to store.")
 
 	var valid := punishment.validate()
 	if not valid.ok:
@@ -128,20 +128,20 @@ func put(punishment: DotPunishment) -> DotResult:
 	return _flush()
 
 
-func remove(id: String) -> DotResult:
+func remove(id: String) -> GSResult:
 	if not _records.has(id):
-		return DotResult.fail(
-			DotError.CODE_IO, "No punishment with that id.", id
+		return GSResult.fail(
+			GSError.CODE_IO, "No punishment with that id.", id
 		)
 	_records.erase(id)
 	return _flush()
 
 
-func _flush() -> DotResult:
+func _flush() -> GSResult:
 	var entries: Array = []
 
 	for key in _records.keys():
-		entries.append((_records[key] as DotPunishment).to_dictionary())
+		entries.append((_records[key] as GSPunishment).to_dictionary())
 
 	var document := {
 		"format_version": FORMAT_VERSION,
@@ -149,7 +149,7 @@ func _flush() -> DotResult:
 		"punishments": entries,
 	}
 
-	var written := DotPaths.write_text(path, JSON.stringify(document, "  "))
+	var written := GSPaths.write_text(path, JSON.stringify(document, "  "))
 
 	if not written.ok:
 		return written.wrap("Could not write the moderation file.")
@@ -158,9 +158,9 @@ func _flush() -> DotResult:
 
 	# The browser mirrors `user://` into IndexedDB and needs an explicit flush, and a tab
 	# closed before one loses the write. Every write path in this family calls it.
-	DotWeb.sync_filesystem()
+	GSWeb.sync_filesystem()
 
-	return DotResult.success(_records.size())
+	return GSResult.success(_records.size())
 
 
 func count() -> int:

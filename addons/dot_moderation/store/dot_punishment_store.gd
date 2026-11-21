@@ -1,5 +1,5 @@
 @tool
-class_name DotPunishmentStore
+class_name GSPunishmentStore
 extends RefCounted
 
 ## Where punishments live.
@@ -22,7 +22,7 @@ extends RefCounted
 ##   on the next refresh.
 
 # Declared here and logged through by the subclasses -- the file, REST and SQL stores each
-# report unusable records on it. The base itself only returns DotResult, which the
+# report unusable records on it. The base itself only returns GSResult, which the
 # manager logs. Not dead: deleting it breaks all three.
 const CHANNEL := "moderation.store"
 
@@ -38,28 +38,28 @@ func is_writable() -> bool:
 
 
 ## Loads every punishment. A failure must leave the caller's current set alone.
-func load_all() -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_UNSUPPORTED, "This store cannot load."
+func load_all() -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_UNSUPPORTED, "This store cannot load."
 	)
 
 
 ## Persists one punishment. Awaited before the caller changes anything.
-func put(_punishment: DotPunishment) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_UNSUPPORTED, "This store is read only."
+func put(_punishment: GSPunishment) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_UNSUPPORTED, "This store is read only."
 	)
 
 
 ## Persists an update to one already stored, such as a revoke.
-func update(punishment: DotPunishment) -> DotResult:
+func update(punishment: GSPunishment) -> GSResult:
 	return await put(punishment)
 
 
 ## Removes one permanently. Rare: a revoke keeps the record, which is the point.
-func remove(_id: String) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_UNSUPPORTED, "This store is read only."
+func remove(_id: String) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_UNSUPPORTED, "This store is read only."
 	)
 
 

@@ -1,8 +1,8 @@
 @tool
-class_name DotPunishmentSubject
+class_name GSPunishmentSubject
 extends RefCounted
 
-## How a [DotPunishment]'s subject is spelled, so two servers spell it the same way.
+## How a [GSPunishment]'s subject is spelled, so two servers spell it the same way.
 ##
 ## [b]A subject is an opaque string and that is the problem this solves.[/b] Opaque is
 ## right — a deployment keys punishments on GameSpice User's pseudonymous id, an account uid or
@@ -13,9 +13,9 @@ extends RefCounted
 ## moderator is told the system works.
 ##
 ## [codeblock]
-## DotPunishmentSubject.for_uid("backbone:abc")     # "uid:backbone:abc"
-## DotPunishmentSubject.for_address("1.2.3.4:5123") # "ip:1.2.3.4"   (port dropped)
-## DotPunishmentSubject.is_address("ip:1.2.3.4")    # true
+## GSPunishmentSubject.for_uid("backbone:abc")     # "uid:backbone:abc"
+## GSPunishmentSubject.for_address("1.2.3.4:5123") # "ip:1.2.3.4"   (port dropped)
+## GSPunishmentSubject.is_address("ip:1.2.3.4")    # true
 ## [/codeblock]
 ##
 ## Anything already carrying a prefix is left alone, and anything with no prefix at all is
@@ -30,7 +30,7 @@ const PREFIX_IP := "ip:"
 ## Addresses that are never a sensible punishment subject.
 ##
 ## Banning loopback locks the operator out of their own listen server and is almost always
-## a mistyped argument — the same refusal [method DotBanManager.ban_address] makes in
+## a mistyped argument — the same refusal [method GSBanManager.ban_address] makes in
 ## GameSpice Server, for the same reason.
 const NEVER_BANNABLE := ["127.0.0.1", "::1", "localhost"]
 
@@ -62,7 +62,7 @@ static func for_address(address: String) -> String:
 ##
 ## Peer addresses arrive with ports attached and in varying IPv6 forms, so without this a
 ## punishment against [code]1.2.3.4[/code] would not match the [code]1.2.3.4:51234[/code]
-## a transport reports. [DotTransport] already knows how to take an address apart,
+## a transport reports. [GSTransport] already knows how to take an address apart,
 ## including the bracketed IPv6 case, so this does not learn it a second time.
 static func normalise_address(address: String) -> String:
 	var raw := address.strip_edges()
@@ -73,7 +73,7 @@ static func normalise_address(address: String) -> String:
 	if raw.begins_with(PREFIX_IP):
 		raw = raw.substr(PREFIX_IP.length())
 
-	var parts := DotTransport.normalise_address(raw, 0)
+	var parts := GSTransport.normalise_address(raw, 0)
 	var host := str(parts["host"])
 
 	return (host if host != "" else raw).to_lower()

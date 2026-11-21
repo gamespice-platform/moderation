@@ -1,5 +1,5 @@
 @tool
-class_name DotPunishmentSchema
+class_name GSPunishmentSchema
 extends RefCounted
 
 ## The punishment table, in one place, for every backend that has tables.
@@ -15,7 +15,7 @@ extends RefCounted
 ## ([code]driver.ensure_table(spec)[/code]), which is where MySQL's refusal to index TEXT,
 ## its lack of [code]CREATE INDEX IF NOT EXISTS[/code] and its reserved words are handled
 ## once for every addon. This file names no GameSpice SQL class, so GameSpice Moderation still parses
-## in a project without it; only [DotPunishmentStoreSql] needs a driver at all.
+## in a project without it; only [GSPunishmentStoreSql] needs a driver at all.
 ##
 ## [b]Placeholders are [code]?[/code] in every dialect[/b] — GameSpice SQL's contract. A driver
 ## that speaks to Postgres natively numbers them itself at the last moment.
@@ -107,12 +107,12 @@ static func delete_by_id(table: String = DEFAULT_TABLE) -> String:
 
 
 ## A punishment as the bound parameters for an upsert, in [constant COLUMNS] order.
-static func to_row(punishment: DotPunishment) -> Array:
+static func to_row(punishment: GSPunishment) -> Array:
 	return [
 		punishment.id,
 		# The machine token, never the player-facing name. Writing "voice muted" here is
 		# the bug that made every stored mute load back as a warning.
-		DotPunishment.kind_token(punishment.kind),
+		GSPunishment.kind_token(punishment.kind),
 		punishment.subject,
 		punishment.reason,
 		punishment.issuer,
@@ -134,7 +134,7 @@ static func to_row(punishment: DotPunishment) -> Array:
 ## [Array] in [constant COLUMNS] order, which is what the rest return. Supporting both
 ## here means a driver does not have to normalise, and a driver that normalises wrongly is
 ## a bug in a place nobody looks.
-static func from_row(row: Variant) -> DotPunishment:
+static func from_row(row: Variant) -> GSPunishment:
 	var values := {}
 
 	if row is Dictionary:
@@ -146,9 +146,9 @@ static func from_row(row: Variant) -> DotPunishment:
 	else:
 		return null
 
-	var punishment := DotPunishment.new()
+	var punishment := GSPunishment.new()
 	punishment.id = str(values.get("id", ""))
-	punishment.kind = DotPunishment.kind_from_name(str(values.get("kind", "warn")))
+	punishment.kind = GSPunishment.kind_from_name(str(values.get("kind", "warn")))
 	punishment.subject = str(values.get("subject", ""))
 	punishment.reason = str(values.get("reason", ""))
 	punishment.issuer = str(values.get("issuer", ""))

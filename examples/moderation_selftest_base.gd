@@ -32,9 +32,9 @@ func _check(condition: bool, what: String, detail: String = "") -> bool:
 	return condition
 
 
-func _manager(path: String = "", scope: String = "") -> DotModerationManager:
-	var manager := DotModerationManager.new()
-	manager.store = DotPunishmentStoreFile.new(
+func _manager(path: String = "", scope: String = "") -> GSModerationManager:
+	var manager := GSModerationManager.new()
+	manager.store = GSPunishmentStoreFile.new(
 		path if path != "" else DATA.path_join("m.json")
 	)
 	manager.server_scope = scope
@@ -49,8 +49,8 @@ func _manager(path: String = "", scope: String = "") -> DotModerationManager:
 func _test_record() -> void:
 	_section("a punishment is a record, not a flag")
 
-	var mute := DotPunishment.create(
-		DotPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 3600
+	var mute := GSPunishment.create(
+		GSPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 3600
 	)
 
 	_check(mute.validate().ok, "a well-formed punishment validates")
@@ -59,7 +59,7 @@ func _test_record() -> void:
 	_check(not mute.is_permanent(), "and is not permanent")
 	_check(mute.remaining() > 3500, "with time left (%d)" % mute.remaining())
 
-	var forever := DotPunishment.create(DotPunishment.Kind.BAN, "uid:2", "cheating")
+	var forever := GSPunishment.create(GSPunishment.Kind.BAN, "uid:2", "cheating")
 	_check(forever.is_permanent(), "a zero duration is permanent")
 	_check(
 		forever.remaining() == -1,
@@ -70,15 +70,15 @@ func _test_record() -> void:
 
 	# A kick is an event. It happened; it is not still happening, and a kick that read as
 	# active would keep a player out for ever.
-	var kick := DotPunishment.create(DotPunishment.Kind.KICK, "uid:3", "afk")
+	var kick := GSPunishment.create(GSPunishment.Kind.KICK, "uid:3", "afk")
 	_check(not kick.is_active(), "a kick is history rather than a state")
-	var warn := DotPunishment.create(DotPunishment.Kind.WARN, "uid:3", "language")
+	var warn := GSPunishment.create(GSPunishment.Kind.WARN, "uid:3", "language")
 	_check(not warn.is_active(), "and so is a warning")
 
-	var nameless := DotPunishment.create(DotPunishment.Kind.BAN, "", "no subject")
+	var nameless := GSPunishment.create(GSPunishment.Kind.BAN, "", "no subject")
 	_check(not nameless.validate().ok, "a punishment against nobody is refused")
 
-	var backwards := DotPunishment.create(DotPunishment.Kind.BAN, "uid:4", "x")
+	var backwards := GSPunishment.create(GSPunishment.Kind.BAN, "uid:4", "x")
 	backwards.expires_at = backwards.issued_at - 10
 	_check(
 		not backwards.validate().ok,
@@ -101,9 +101,9 @@ func _test_record() -> void:
 		"to_dictionary hands out a copy of its evidence, not the original"
 	)
 
-	var back := DotPunishment.from_dictionary(mute.to_dictionary())
+	var back := GSPunishment.from_dictionary(mute.to_dictionary())
 	_check(back.id == mute.id, "a record round-trips its id")
-	_check(back.kind == mute.kind, "its kind (%s)" % DotPunishment.kind_name(back.kind))
+	_check(back.kind == mute.kind, "its kind (%s)" % GSPunishment.kind_name(back.kind))
 	_check(back.subject == mute.subject and back.reason == mute.reason, "and its content")
 	_check(back.expires_at == mute.expires_at, "and its expiry")
 	_done()
@@ -112,11 +112,11 @@ func _test_record() -> void:
 func _test_durations() -> void:
 	_section("durations a person reads")
 
-	_check(DotPunishment.format_duration(45) == "45s", "seconds")
-	_check(DotPunishment.format_duration(90) == "1m", "minutes")
-	_check(DotPunishment.format_duration(3700).begins_with("1h"), "hours")
-	_check(DotPunishment.format_duration(90000).begins_with("1d"), "days")
-	_check(DotPunishment.format_duration(0) == "0s", "and zero does not crash")
+	_check(GSPunishment.format_duration(45) == "45s", "seconds")
+	_check(GSPunishment.format_duration(90) == "1m", "minutes")
+	_check(GSPunishment.format_duration(3700).begins_with("1h"), "hours")
+	_check(GSPunishment.format_duration(90000).begins_with("1d"), "days")
+	_check(GSPunishment.format_duration(0) == "0s", "and zero does not crash")
 	_done()
 
 
@@ -127,8 +127,8 @@ func _test_issue_and_ask() -> void:
 	await get_tree().process_frame
 	await manager.load_all()
 
-	var issued: DotResult = await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 600
+	var issued: GSResult = await manager.issue(
+		GSPunishment.Kind.VOICE_MUTE, "uid:1", "mic spam", "admin:sarah", 600
 	)
 	_check(issued.ok, "a mute is issued", str(issued.error))
 
@@ -137,14 +137,14 @@ func _test_issue_and_ask() -> void:
 	_check(not manager.is_banned_key("uid:1"), "and not banned")
 	_check(not manager.is_voice_muted_key("uid:2"), "and nobody else is muted")
 
-	await manager.issue(DotPunishment.Kind.GAG, "uid:1", "spam", "admin:sarah", 600)
+	await manager.issue(GSPunishment.Kind.GAG, "uid:1", "spam", "admin:sarah", 600)
 	_check(manager.is_gagged_key("uid:1"), "a gag is a separate record")
 	_check(
 		manager.active_for("uid:1").size() == 2,
 		"so a player can hold both at once (%d)" % manager.active_for("uid:1").size()
 	)
 
-	await manager.issue(DotPunishment.Kind.WARN, "uid:1", "first warning")
+	await manager.issue(GSPunishment.Kind.WARN, "uid:1", "first warning")
 	_check(
 		manager.active_for("uid:1").size() == 2,
 		"a warning enforces nothing"
@@ -158,7 +158,7 @@ func _test_issue_and_ask() -> void:
 	var found := manager.search("mic")
 	_check(found.size() == 1, "records are searchable by reason (%d)" % found.size())
 
-	var nobody: DotResult = await manager.issue(DotPunishment.Kind.BAN, "  ", "x")
+	var nobody: GSResult = await manager.issue(GSPunishment.Kind.BAN, "  ", "x")
 	_check(not nobody.ok, "a punishment against nobody is refused")
 
 	manager.queue_free()
@@ -174,17 +174,17 @@ func _test_expiry() -> void:
 	await manager.load_all()
 
 	await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:9", "short", "console", 3600
+		GSPunishment.Kind.VOICE_MUTE, "uid:9", "short", "console", 3600
 	)
 	_check(manager.is_voice_muted_key("uid:9"), "a mute is in force")
 
 	# Reached into rather than waited for: a test that slept an hour is a test nobody
 	# runs. What is being checked is that the READ notices, which is the whole design.
-	var record := manager.active_of_kind("uid:9", DotPunishment.Kind.VOICE_MUTE)
+	var record := manager.active_of_kind("uid:9", GSPunishment.Kind.VOICE_MUTE)
 	record.expires_at = int(Time.get_unix_time_from_system()) - 1
 
 	var noticed := [false]
-	manager.expired.connect(func(_p: DotPunishment) -> void: noticed[0] = true)
+	manager.expired.connect(func(_p: GSPunishment) -> void: noticed[0] = true)
 
 	_check(
 		not manager.is_voice_muted_key("uid:9"),
@@ -209,12 +209,12 @@ func _test_revoke() -> void:
 	await get_tree().process_frame
 	await manager.load_all()
 
-	var issued: DotResult = await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:5", "mic spam", "admin:sarah", 600
+	var issued: GSResult = await manager.issue(
+		GSPunishment.Kind.VOICE_MUTE, "uid:5", "mic spam", "admin:sarah", 600
 	)
-	var punishment: DotPunishment = issued.value
+	var punishment: GSPunishment = issued.value
 
-	var lifted: DotResult = await manager.revoke(punishment.id, "admin:tom", "appealed")
+	var lifted: GSResult = await manager.revoke(punishment.id, "admin:tom", "appealed")
 	_check(lifted.ok, "a mute is lifted", str(lifted.error))
 	_check(not manager.is_voice_muted_key("uid:5"), "and the player can speak")
 	_check(
@@ -225,23 +225,23 @@ func _test_revoke() -> void:
 	_check(punishment.revoked_by == "admin:tom", "with who lifted it")
 	_check(punishment.revoke_reason == "appealed", "and why")
 
-	var again: DotResult = await manager.revoke(punishment.id, "admin:tom")
+	var again: GSResult = await manager.revoke(punishment.id, "admin:tom")
 	_check(not again.ok, "lifting it twice is refused")
 
-	var missing: DotResult = await manager.revoke("nope", "admin:tom")
+	var missing: GSResult = await manager.revoke("nope", "admin:tom")
 	_check(not missing.ok, "and so is lifting one that does not exist")
 
 	# What `unmute <player>` calls, which is the shape a console command wants.
-	await manager.issue(DotPunishment.Kind.VOICE_MUTE, "uid:6", "a", "console", 600)
-	await manager.issue(DotPunishment.Kind.VOICE_MUTE, "uid:6", "b", "console", 600)
-	var all: DotResult = await manager.revoke_all(
-		"uid:6", DotPunishment.Kind.VOICE_MUTE, "console"
+	await manager.issue(GSPunishment.Kind.VOICE_MUTE, "uid:6", "a", "console", 600)
+	await manager.issue(GSPunishment.Kind.VOICE_MUTE, "uid:6", "b", "console", 600)
+	var all: GSResult = await manager.revoke_all(
+		"uid:6", GSPunishment.Kind.VOICE_MUTE, "console"
 	)
 	_check(all.ok and int(all.value) == 2, "every active mute can be lifted at once")
 	_check(not manager.is_voice_muted_key("uid:6"), "and the player can speak")
 
-	var nothing: DotResult = await manager.revoke_all(
-		"uid:7", DotPunishment.Kind.VOICE_MUTE, "console"
+	var nothing: GSResult = await manager.revoke_all(
+		"uid:7", GSPunishment.Kind.VOICE_MUTE, "console"
 	)
 	_check(not nothing.ok, "lifting nothing says so rather than reporting success")
 
@@ -258,15 +258,15 @@ func _test_immunity() -> void:
 	await manager.load_all()
 
 	# A senior mutes somebody.
-	var senior: DotResult = await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:8", "spam", "admin:senior", 600, 80
+	var senior: GSResult = await manager.issue(
+		GSPunishment.Kind.VOICE_MUTE, "uid:8", "spam", "admin:senior", 600, 80
 	)
 	_check(senior.ok, "a senior moderator issues a mute")
 
 	# A junior cannot undo it. This is the half of immunity that usually gets left out,
 	# and without it a junior can quietly reverse every decision above them.
-	var junior: DotResult = await manager.revoke(
-		(senior.value as DotPunishment).id, "admin:junior", "", 10
+	var junior: GSResult = await manager.revoke(
+		(senior.value as GSPunishment).id, "admin:junior", "", 10
 	)
 	_check(
 		not junior.ok,
@@ -274,24 +274,24 @@ func _test_immunity() -> void:
 		"immunity is about who may be acted on, not only who may act"
 	)
 
-	var higher: DotResult = await manager.revoke(
-		(senior.value as DotPunishment).id, "admin:root", "", 100
+	var higher: GSResult = await manager.revoke(
+		(senior.value as GSPunishment).id, "admin:root", "", 100
 	)
 	_check(higher.ok, "somebody above them can")
 
 	# Equal cannot act on equal. Two moderators at the same level muting each other in a
 	# loop has no correct resolution, so it is forbidden rather than raced.
 	await manager.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:11", "spam", "admin:a", 600, 50
+		GSPunishment.Kind.VOICE_MUTE, "uid:11", "spam", "admin:a", 600, 50
 	)
-	var equal: DotResult = await manager.issue(
-		DotPunishment.Kind.GAG, "uid:11", "more", "admin:b", 600, 50
+	var equal: GSResult = await manager.issue(
+		GSPunishment.Kind.GAG, "uid:11", "more", "admin:b", 600, 50
 	)
 	_check(not equal.ok, "equal immunity cannot act on equal by default")
 
 	manager.equal_immunity_may_act = true
-	var permitted: DotResult = await manager.issue(
-		DotPunishment.Kind.GAG, "uid:11", "more", "admin:b", 600, 50
+	var permitted: GSResult = await manager.issue(
+		GSPunishment.Kind.GAG, "uid:11", "more", "admin:b", 600, 50
 	)
 	_check(permitted.ok, "unless a community says otherwise")
 
@@ -309,7 +309,7 @@ func _test_persistence() -> void:
 	await get_tree().process_frame
 	await first.load_all()
 	await first.issue(
-		DotPunishment.Kind.VOICE_MUTE, "uid:99", "mic spam", "admin:sarah", 3600
+		GSPunishment.Kind.VOICE_MUTE, "uid:99", "mic spam", "admin:sarah", 3600
 	)
 	_check(first.is_voice_muted_key("uid:99"), "a player is muted")
 	first.queue_free()
@@ -319,7 +319,7 @@ func _test_persistence() -> void:
 	# restarted" and "they joined the other server" all look like from here.
 	var second := _manager(path)
 	await get_tree().process_frame
-	var loaded: DotResult = await second.load_all()
+	var loaded: GSResult = await second.load_all()
 
 	_check(loaded.ok, "a second server loads the same list", str(loaded.error))
 	_check(
@@ -329,7 +329,7 @@ func _test_persistence() -> void:
 		+ "they disconnect. That is the complaint this addon exists to answer."
 	)
 
-	var record := second.active_of_kind("uid:99", DotPunishment.Kind.VOICE_MUTE)
+	var record := second.active_of_kind("uid:99", GSPunishment.Kind.VOICE_MUTE)
 	_check(record != null and record.reason == "mic spam", "with the reason intact")
 	_check(record != null and record.remaining() > 3500, "and the time left")
 
@@ -342,10 +342,10 @@ func _test_store_refusals() -> void:
 	_section("what the store refuses, and what it keeps")
 
 	var path := DATA.path_join("broken.json")
-	DotPaths.write_text(path, "this is not json")
+	GSPaths.write_text(path, "this is not json")
 
-	var store := DotPunishmentStoreFile.new(path)
-	var loaded: DotResult = await store.load_all()
+	var store := GSPunishmentStoreFile.new(path)
+	var loaded: GSResult = await store.load_all()
 	_check(
 		not loaded.ok,
 		"a corrupt file is a loud failure",
@@ -356,11 +356,11 @@ func _test_store_refusals() -> void:
 	var manager := _manager(DATA.path_join("keep.json"))
 	await get_tree().process_frame
 	await manager.load_all()
-	await manager.issue(DotPunishment.Kind.BAN, "uid:20", "cheating", "console")
+	await manager.issue(GSPunishment.Kind.BAN, "uid:20", "cheating", "console")
 	_check(manager.is_banned_key("uid:20"), "a ban is in force")
 
-	manager.store = DotPunishmentStoreFile.new(path)
-	var failed: DotResult = await manager.load_all()
+	manager.store = GSPunishmentStoreFile.new(path)
+	var failed: GSResult = await manager.load_all()
 	_check(not failed.ok, "a failed reload reports the failure")
 	_check(
 		manager.is_banned_key("uid:20"),
@@ -370,7 +370,7 @@ func _test_store_refusals() -> void:
 
 	# One bad entry does not condemn the file.
 	var mixed := DATA.path_join("mixed.json")
-	DotPaths.write_text(mixed, JSON.stringify({
+	GSPaths.write_text(mixed, JSON.stringify({
 		"format_version": 1,
 		"punishments": [
 			{"id": "a", "kind": "ban", "subject": "uid:30", "reason": "ok",
@@ -380,7 +380,7 @@ func _test_store_refusals() -> void:
 			 "issued_at": 1, "expires_at": 0},
 		],
 	}))
-	var partial: DotResult = await DotPunishmentStoreFile.new(mixed).load_all()
+	var partial: GSResult = await GSPunishmentStoreFile.new(mixed).load_all()
 	_check(partial.ok, "a file with one bad entry still loads")
 	_check(
 		partial.ok and (partial.value as Array).size() == 2,
@@ -390,9 +390,9 @@ func _test_store_refusals() -> void:
 	# A read-only store is a legitimate configuration, said plainly.
 	var readonly := _manager(DATA.path_join("ro.json"))
 	await get_tree().process_frame
-	readonly.store = DotPunishmentStore.new()
-	var refused: DotResult = await readonly.issue(
-		DotPunishment.Kind.BAN, "uid:40", "x", "console"
+	readonly.store = GSPunishmentStore.new()
+	var refused: GSResult = await readonly.issue(
+		GSPunishment.Kind.BAN, "uid:40", "x", "console"
 	)
 	_check(
 		not refused.ok,
@@ -415,7 +415,7 @@ func _test_scope() -> void:
 	var surf := _manager(path, "surf")
 	await get_tree().process_frame
 	await surf.load_all()
-	await surf.issue(DotPunishment.Kind.VOICE_MUTE, "uid:50", "spam", "console", 600)
+	await surf.issue(GSPunishment.Kind.VOICE_MUTE, "uid:50", "spam", "console", 600)
 	_check(surf.is_voice_muted_key("uid:50"), "a mute applies on the server that set it")
 	surf.queue_free()
 	await get_tree().process_frame
@@ -444,7 +444,7 @@ func _test_scope() -> void:
 
 
 ## The join, run rather than assumed.
-## GameSpice Voice's router calls `is_voice_muted(peer)` on whatever [DotRegistry] holds under
+## GameSpice Voice's router calls `is_voice_muted(peer)` on whatever [GSRegistry] holds under
 ## `dot_mute_source`; neither addon imports the other, so only running both halves proves it.
 func _test_address_bans() -> void:
 	_section("banning a machine rather than a person")
@@ -455,7 +455,7 @@ func _test_address_bans() -> void:
 	await get_tree().process_frame
 	await manager.load_all()
 
-	var banned: DotResult = await manager.ban_address(
+	var banned: GSResult = await manager.ban_address(
 		"203.0.113.9:40000", "ban evasion", "admin:sarah", 0, 0
 	)
 	_check(banned.ok, "an address is banned", str(banned.error))
@@ -468,7 +468,7 @@ func _test_address_bans() -> void:
 		"and nobody else"
 	)
 
-	var loopback: DotResult = await manager.ban_address("127.0.0.1", "oops", "console")
+	var loopback: GSResult = await manager.ban_address("127.0.0.1", "oops", "console")
 	_check(not loopback.ok, "loopback is refused rather than recorded")
 
 	await _address_admission(manager)
@@ -476,14 +476,14 @@ func _test_address_bans() -> void:
 	# A kick is history, not a state, so it must never refuse a connection — which is
 	# the whole reason a kick and a ban are one record with a different kind.
 	await manager.issue(
-		DotPunishment.Kind.KICK, "ip:198.51.100.2", "language", "admin:sarah"
+		GSPunishment.Kind.KICK, "ip:198.51.100.2", "language", "admin:sarah"
 	)
 	_check(
 		manager.check_admission("", "198.51.100.2").ok,
 		"a kick against an address keeps nobody out"
 	)
 
-	var temporary: DotResult = await manager.ban_address(
+	var temporary: GSResult = await manager.ban_address(
 		"198.51.100.3", "cooling off", "admin:sarah", 1, 0
 	)
 	_check(temporary.ok, "a temporary address ban is recorded")
@@ -491,7 +491,7 @@ func _test_address_bans() -> void:
 		not manager.check_admission("", "198.51.100.3").ok,
 		"and refuses while it is in force"
 	)
-	var record: DotPunishment = temporary.value
+	var record: GSPunishment = temporary.value
 	record.expires_at = int(Time.get_unix_time_from_system()) - 1
 	_check(
 		manager.check_admission("", "198.51.100.3").ok,
@@ -517,9 +517,9 @@ func _test_address_bans() -> void:
 	_done()
 
 
-func _address_admission(manager: DotModerationManager) -> void:
+func _address_admission(manager: GSModerationManager) -> void:
 	# What GameSpice Server calls. Everything above is unreachable from a server without it.
-	var refused: DotResult = manager.check_admission("", "203.0.113.9:51111")
+	var refused: GSResult = manager.check_admission("", "203.0.113.9:51111")
 	_check(not refused.ok, "check_admission refuses the banned address")
 	_check(
 		not refused.ok and refused.error.message.to_lower().contains("banned"),
@@ -548,30 +548,30 @@ func _address_spelling() -> void:
 	# against "1.2.3.4" and checked against what a transport actually reports —
 	# "1.2.3.4:51234" — is two strings and no error.
 	_check(
-		DotPunishmentSubject.for_address("1.2.3.4:51234") == "ip:1.2.3.4",
+		GSPunishmentSubject.for_address("1.2.3.4:51234") == "ip:1.2.3.4",
 		"the port is not part of the subject"
 	)
 	_check(
-		DotPunishmentSubject.for_address("[2001:db8::1]:9999") == "ip:2001:db8::1",
+		GSPunishmentSubject.for_address("[2001:db8::1]:9999") == "ip:2001:db8::1",
 		"nor is a bracketed IPv6 port"
 	)
 	_check(
-		DotPunishmentSubject.for_address("ip:1.2.3.4") == "ip:1.2.3.4",
+		GSPunishmentSubject.for_address("ip:1.2.3.4") == "ip:1.2.3.4",
 		"a subject that is already one is left alone"
 	)
 	_check(
-		DotPunishmentSubject.for_uid("uid:alice") == "uid:alice"
-			and DotPunishmentSubject.for_uid("alice") == "uid:alice",
+		GSPunishmentSubject.for_uid("uid:alice") == "uid:alice"
+			and GSPunishmentSubject.for_uid("alice") == "uid:alice",
 		"and the same holds for a person"
 	)
 	_check(
-		not DotPunishmentSubject.is_bannable_address("127.0.0.1")
-			and not DotPunishmentSubject.is_bannable_address("::1"),
+		not GSPunishmentSubject.is_bannable_address("127.0.0.1")
+			and not GSPunishmentSubject.is_bannable_address("::1"),
 		"loopback is not a bannable address",
 		"banning it locks the operator out of their own listen server"
 	)
 	_check(
-		not DotPunishmentSubject.is_bannable_address("unknown"),
+		not GSPunishmentSubject.is_bannable_address("unknown"),
 		"and neither is an address the transport could not report",
 		"that is every client at once"
 	)

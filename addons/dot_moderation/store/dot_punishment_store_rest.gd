@@ -1,6 +1,6 @@
 @tool
-class_name DotPunishmentStoreRest
-extends DotPunishmentStore
+class_name GSPunishmentStoreRest
+extends GSPunishmentStore
 
 ## Punishments from somebody else's ban system, over HTTP.
 ##
@@ -13,7 +13,7 @@ extends DotPunishmentStore
 ##
 ## It is also the answer for PostgreSQL and MySQL, which Godot cannot speak: put the
 ## database behind this rather than putting its password on every game server. See
-## [DotSqlDriverGateway] for why that is the better shape anyway.
+## [GSSqlDriverGateway] for why that is the better shape anyway.
 ##
 ## [codeblock]
 ## GET    {base}/punishments                  -> {"punishments": [ {...}, ... ]}
@@ -22,21 +22,21 @@ extends DotPunishmentStore
 ## DELETE {base}/punishments/{id}                             -> {"ok": true}
 ## [/codeblock]
 ##
-## A record is the same JSON [method DotPunishment.to_dictionary] produces, which is the
+## A record is the same JSON [method GSPunishment.to_dictionary] produces, which is the
 ## same shape the file store writes. One format for all three backends, so a community can
 ## move between them by changing one line.
 ##
 ## [b]The read path is what has to be right.[/b] A failure here must never look like "no
 ## punishments": that readmits everybody who was ever removed, silently, which is the
 ## worst failure this addon has. Every error path returns a failure and
-## [DotModerationManager] keeps whatever it already had.
+## [GSModerationManager] keeps whatever it already had.
 
 ## Where the API lives, without a trailing slash.
 var base_url: String = ""
 
 ## Sent as the `Authorization` header on every request.
 ##
-## Never logged and never in [method describe]. Same rule as `DotConfig.sensitive_keys`:
+## Never logged and never in [method describe]. Same rule as `GSConfig.sensitive_keys`:
 ## a credential that reaches a pasted bug report is a credential that has to be rotated.
 var token: String = ""
 
@@ -51,7 +51,7 @@ var writable: bool = true
 var timeout_sec: float = 10.0
 
 ## The HTTP client. Must be in the tree, because [HTTPRequest] is a [Node].
-var http: DotHttp = null
+var http: GSHttp = null
 
 ## Diagnostics.
 var loads: int = 0
@@ -59,7 +59,7 @@ var writes: int = 0
 var failures: int = 0
 
 
-func _init(p_base_url: String = "", p_http: DotHttp = null) -> void:
+func _init(p_base_url: String = "", p_http: GSHttp = null) -> void:
 	base_url = p_base_url
 	http = p_http
 
@@ -83,23 +83,23 @@ func _url(suffix: String = "") -> String:
 	return "%s%s%s" % [base_url.trim_suffix("/"), resource_path, suffix]
 
 
-func _ready_to_call() -> DotResult:
+func _ready_to_call() -> GSResult:
 	if base_url.strip_edges() == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "A REST punishment store needs a base_url."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "A REST punishment store needs a base_url."
 		)
 
 	if http == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
-			"A REST punishment store needs a DotHttp.",
+		return GSResult.fail(
+			GSError.CODE_STATE,
+			"A REST punishment store needs a GSHttp.",
 			"it must be in the scene tree, because HTTPRequest is a Node"
 		)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func load_all() -> DotResult:
+func load_all() -> GSResult:
 	return await _load(_url())
 
 
@@ -108,11 +108,11 @@ func load_all() -> DotResult:
 ## What a live server asks on the join path. A deployment with a shared API uses this
 ## rather than pulling the whole list, so a ban issued on the website is in force here on
 ## the next connection rather than on the next restart.
-func load_for(subject: String) -> DotResult:
+func load_for(subject: String) -> GSResult:
 	return await _load("%s?subject=%s" % [_url(), subject.uri_encode()])
 
 
-func _load(url: String) -> DotResult:
+func _load(url: String) -> GSResult:
 	var ready := _ready_to_call()
 	if not ready.ok:
 		return ready
@@ -129,11 +129,11 @@ func _load(url: String) -> DotResult:
 
 
 ## Validates the response body and builds the records; `get_json` already hands back the parsed body.
-func _parse_entries(url: String, body: Variant) -> DotResult:
+func _parse_entries(url: String, body: Variant) -> GSResult:
 	if not (body is Dictionary):
 		failures += 1
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The punishment API did not return an object.",
 			url
 		)
@@ -143,8 +143,8 @@ func _parse_entries(url: String, body: Variant) -> DotResult:
 	# The key must be present: defaulting to [] would read any 200 body as "nobody is banned".
 	if not document.has("punishments"):
 		failures += 1
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The punishment API returned no 'punishments' key.",
 			"got keys: %s" % ", ".join(PackedStringArray(document.keys()))
 		)
@@ -153,13 +153,13 @@ func _parse_entries(url: String, body: Variant) -> DotResult:
 
 	if not (entries is Array):
 		failures += 1
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"The punishment API's 'punishments' is not an array.",
 			"got %s" % type_string(typeof(entries))
 		)
 
-	var loaded: Array[DotPunishment] = []
+	var loaded: Array[GSPunishment] = []
 	var skipped := 0
 
 	for entry in (entries as Array):
@@ -167,12 +167,12 @@ func _parse_entries(url: String, body: Variant) -> DotResult:
 			skipped += 1
 			continue
 
-		var punishment := DotPunishment.from_dictionary(entry as Dictionary)
+		var punishment := GSPunishment.from_dictionary(entry as Dictionary)
 		var valid := punishment.validate()
 
 		if not valid.ok:
 			# The API is somebody else's software; one bad row does not condemn the response.
-			DotLog.warn(CHANNEL, "skipping an unusable record from the API", {
+			GSLog.warn(CHANNEL, "skipping an unusable record from the API", {
 				"why": valid.error.message
 			})
 			skipped += 1
@@ -183,24 +183,24 @@ func _parse_entries(url: String, body: Variant) -> DotResult:
 	loads += 1
 
 	if skipped > 0:
-		DotLog.warn(CHANNEL, "the punishment API returned unusable records", {
+		GSLog.warn(CHANNEL, "the punishment API returned unusable records", {
 			"skipped": skipped, "loaded": loaded.size()
 		})
 
-	return DotResult.success(loaded)
+	return GSResult.success(loaded)
 
 
-func put(punishment: DotPunishment) -> DotResult:
+func put(punishment: GSPunishment) -> GSResult:
 	if punishment == null:
-		return DotResult.fail(DotError.CODE_INVALID, "No punishment to store.")
+		return GSResult.fail(GSError.CODE_INVALID, "No punishment to store.")
 
 	var valid := punishment.validate()
 	if not valid.ok:
 		return valid
 
 	if not writable:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN,
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN,
 			"This punishment API is read only from here.",
 			"issued centrally; this server enforces rather than adds"
 		)
@@ -223,13 +223,13 @@ func put(punishment: DotPunishment) -> DotResult:
 		return response.wrap("The punishment API refused the record.")
 
 	writes += 1
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func remove(id: String) -> DotResult:
+func remove(id: String) -> GSResult:
 	if not writable:
-		return DotResult.fail(
-			DotError.CODE_FORBIDDEN, "This punishment API is read only from here."
+		return GSResult.fail(
+			GSError.CODE_FORBIDDEN, "This punishment API is read only from here."
 		)
 
 	var ready := _ready_to_call()
@@ -248,7 +248,7 @@ func remove(id: String) -> DotResult:
 		return response.wrap("The punishment API would not remove the record.")
 
 	writes += 1
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 func describe() -> Dictionary:
