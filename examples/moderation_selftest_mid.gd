@@ -3,30 +3,30 @@ extends "res://examples/moderation_selftest_base.gd"
 ## Second part of the self-test: voice, schema, SQL and REST sections.
 
 func _test_voice_actually_asks() -> void:
-	_section("dot-voice asks this addon, and this addon answers")
+	_section("gs-voice asks this addon, and this addon answers")
 
 	if not ClassDB.class_exists("Node") or not _voice_is_present():
 		# Said out loud rather than skipped quietly. "0 failures" from a suite that ran
 		# nothing is how a family gets to a release with two ends that never met.
 		_check(
 			false,
-			"dot-voice is present so the join can be run",
-			"addons/dot_voice is not linked; the integration below is NOT covered"
+			"gs-voice is present so the join can be run",
+			"addons/gs_voice is not linked; the integration below is NOT covered"
 		)
 		_done()
 		return
 
 	var manager := GSModerationManager.new()
 	manager.store = GSPunishmentStoreFile.new(DATA.path_join("join.json"))
-	# On, because publishing under `dot_mute_source` IS the integration.
+	# On, because publishing under `gs_mute_source` IS the integration.
 	manager.register_mute_source = true
 	add_child(manager)
 	await get_tree().process_frame
 	await manager.load_all()
 
 	_check(
-		GSRegistry.get_service(&"dot_mute_source") == manager,
-		"the manager publishes itself where dot-voice looks",
+		GSRegistry.get_service(&"gs_mute_source") == manager,
+		"the manager publishes itself where gs-voice looks",
 		"one registration, and four call sites in this family have found null before"
 	)
 
@@ -167,11 +167,11 @@ func _voice_unmapped(rejoined: GSModerationManager, speak: Callable, delivered: 
 ## Checked by path, not by class name: naming an absent `class_name` makes the suite fail
 ## to parse, and a scene that fails to parse hangs.
 func _voice_is_present() -> bool:
-	return ResourceLoader.exists("res://addons/dot_voice/runtime/dot_voice_router.gd")
+	return ResourceLoader.exists("res://addons/gs_voice/runtime/gs_voice_router.gd")
 
 
 func _test_schema() -> void:
-	_section("the punishment table, as a spec dot-sql renders")
+	_section("the punishment table, as a spec gs-sql renders")
 
 	# The spec, not the DDL: rendering it per dialect is GameSpice SQL's job and is tested
 	# there, against real SQLite, Postgres and MySQL. What this addon owns is which
@@ -219,7 +219,7 @@ func _test_schema() -> void:
 	# Rendered for MySQL, the one with the traps.
 	var mysql := GSSqlSchema.ddl(spec, GSSqlDialect.Kind.MYSQL)
 	_check(
-		mysql.size() == 1 and mysql[0].contains("KEY dot_punishments_subject_idx"),
+		mysql.size() == 1 and mysql[0].contains("KEY gs_punishments_subject_idx"),
 		"mysql: indexes inside the CREATE TABLE",
 		"MySQL 8 has no CREATE INDEX IF NOT EXISTS"
 	)
@@ -292,12 +292,12 @@ func _test_sql_store() -> void:
 	var opened: GSResult = await store.open()
 	_check(opened.ok, "the store opens and creates its schema", str(opened.error))
 	_check(
-		driver.matching("CREATE TABLE IF NOT EXISTS dot_punishments").size() == 1,
+		driver.matching("CREATE TABLE IF NOT EXISTS gs_punishments").size() == 1,
 		"the table is created"
 	)
 	_check(driver.matching("CREATE INDEX").size() >= 2, "and the indexes")
 	_check(
-		driver.matching("INSERT INTO dot_sql_migrations").size() == 1,
+		driver.matching("INSERT INTO gs_sql_migrations").size() == 1,
 		"and its schema version recorded",
 		"so a build that meets a newer database refuses it rather than misreading it"
 	)

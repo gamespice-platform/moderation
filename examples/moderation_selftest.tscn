@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://dotmod0selftest"]
+[gd_scene load_steps=2 format=3 uid="uid://gsmod0selftest"]
 
 [ext_resource type="Script" path="res://examples/moderation_selftest.gd" id="1_ms"]
 

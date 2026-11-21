@@ -16,7 +16,7 @@ extends RefCounted
 ## [code]playing_sessions[/code]; a command context is anything with [code]args[/code],
 ## [code]session[/code] and [code]reply[/code]. So this file names no GameSpice Server class and
 ## GameSpice Moderation stays installable without it — which is the rule this addon has kept since
-## it was written, and the reason [code]dot_ban_source[/code] exists.
+## it was written, and the reason [code]gs_ban_source[/code] exists.
 ##
 ## [b]Targets go through the server, not through a second parser.[/b] A single player is
 ## resolved by [code]resolve_target[/code], which is what [code]kick[/code] uses: the same

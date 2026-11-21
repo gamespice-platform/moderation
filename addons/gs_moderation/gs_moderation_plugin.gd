@@ -8,18 +8,18 @@ extends EditorPlugin
 ## process needs two, and a tool that inspects a shared store while a server uses it
 ## needs a second one pointed somewhere else.
 
-const _ICON := "res://addons/dot_moderation/icon_placeholder.svg"
+const _ICON := "res://addons/gs_moderation/icon_placeholder.svg"
 
 const _TYPES := [
 	[
 		"GSModerationManager",
 		"Node",
-		"res://addons/dot_moderation/runtime/dot_moderation_manager.gd",
+		"res://addons/gs_moderation/runtime/gs_moderation_manager.gd",
 	],
 	[
 		"GSModTools",
 		"Node",
-		"res://addons/dot_moderation/tools/dot_mod_tools.gd",
+		"res://addons/gs_moderation/tools/gs_mod_tools.gd",
 	],
 ]
 

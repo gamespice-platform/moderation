@@ -18,9 +18,9 @@ The table is defined once, in `GSPunishmentSchema.table_spec()`, as plain data, 
 
 **The SQL itself is GameSpice SQL's.** This addon once carried its own `GSSqlDriver*` classes and DDL per dialect; a `class_name` declared twice fails every script in a project that links both, and the DDL had MySQL bugs no suite here could see. Both are handled once, in GameSpice SQL's `GSSqlSchema`, for every addon that keeps a table. Do not add SQL dialect code here.
 
-**The store reaches its driver duck-typed.** `GSPunishmentStoreSql.driver` is untyped and asked for `migrate`, `query`, `execute` and `upsert_sql`, so this addon depends only on GameSpice Core and parses in a project without GameSpice SQL. Only the suites link GameSpice SQL (the `/addons/dot_sql` line in `.gitignore`).
+**The store reaches its driver duck-typed.** `GSPunishmentStoreSql.driver` is untyped and asked for `migrate`, `query`, `execute` and `upsert_sql`, so this addon depends only on GameSpice Core and parses in a project without GameSpice SQL. Only the suites link GameSpice SQL (the `/addons/gs_sql` line in `.gitignore`).
 
-**The schema is versioned** through GameSpice SQL's migrator under the component `dot_moderation:<table>`. A database from a newer build is refused rather than read with columns that changed meaning underneath it.
+**The schema is versioned** through GameSpice SQL's migrator under the component `gs_moderation:<table>`. A database from a newer build is refused rather than read with columns that changed meaning underneath it.
 
 What the dialects still differ in, and why the spec is shaped the way it is: `id`, `subject` and `scope` are `key` columns (VARCHAR on MySQL) because all three are indexed and MySQL cannot index TEXT; `revoked` is 0/1 everywhere and `from_row` reads back a bool, an int or a string because each backend returns a different one; and time is Unix seconds in a BIGINT, never a timestamp type, because a timestamp carries a zone or pretends not to and two servers reading this table are in different places. Placeholders are `?` in every dialect (GameSpice SQL's contract).
 
@@ -35,4 +35,4 @@ What the dialects still differ in, and why the spec is shaped the way it is: `id
 
 ## Testing
 
-`moderation_selftest` drives the SQL store against dot-sql's recording driver: which statements, which parameters, in which order, and the row mapping. `moderation_sql_live` runs the same store against real SQLite, Postgres and MySQL through dot-sql's reference gateway: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn`, with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. Both matter: the recording driver cannot see a dialect bug.
+`moderation_selftest` drives the SQL store against gs-sql's recording driver: which statements, which parameters, in which order, and the row mapping. `moderation_sql_live` runs the same store against real SQLite, Postgres and MySQL through gs-sql's reference gateway: `../gs-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn`, with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. Both matter: the recording driver cannot see a dialect bug.

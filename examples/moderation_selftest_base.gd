@@ -3,7 +3,7 @@ extends Node
 ## First half of the self-test: the harness and the record, store and admission sections.
 ## [code]moderation_selftest.gd[/code] extends this and runs everything.
 
-const DATA := "user://dot_moderation_selftest"
+const DATA := "user://gs_moderation_selftest"
 
 var _passed := 0
 var _failed := 0
@@ -325,7 +325,7 @@ func _test_persistence() -> void:
 	_check(
 		second.is_voice_muted_key("uid:99"),
 		"and the player is STILL muted",
-		"dot-server's mute is a boolean on a session object, so it is gone the moment "
+		"gs-server's mute is a boolean on a session object, so it is gone the moment "
 		+ "they disconnect. That is the complaint this addon exists to answer."
 	)
 
@@ -445,7 +445,7 @@ func _test_scope() -> void:
 
 ## The join, run rather than assumed.
 ## GameSpice Voice's router calls `is_voice_muted(peer)` on whatever [GSRegistry] holds under
-## `dot_mute_source`; neither addon imports the other, so only running both halves proves it.
+## `gs_mute_source`; neither addon imports the other, so only running both halves proves it.
 func _test_address_bans() -> void:
 	_section("banning a machine rather than a person")
 
@@ -509,7 +509,7 @@ func _test_address_bans() -> void:
 	_check(
 		warned,
 		"an unregistered ban source is reported in describe_lines",
-		"nothing here can refuse a connection; dot-server has to ask"
+		"nothing here can refuse a connection; gs-server has to ask"
 	)
 
 	manager.queue_free()

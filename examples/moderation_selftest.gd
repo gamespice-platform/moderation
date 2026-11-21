@@ -30,7 +30,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-moderation self-test")
+	print("gs-moderation self-test")
 
 	GSPaths.remove_tree(DATA)
 
@@ -616,7 +616,7 @@ func _run_command(console: FakeConsole, line: String, session: Object, immunity:
 
 
 func _test_mod_commands() -> void:
-	_section("the live admin set as commands, with no dot-server in the project")
+	_section("the live admin set as commands, with no gs-server in the project")
 
 	var world := FakeWorld.new()
 	var tools := _abilities_tools(world)

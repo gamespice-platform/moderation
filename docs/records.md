@@ -33,24 +33,24 @@ A peer id is reused within minutes and means nothing after a disconnect, so a pu
 
 A subject is opaque, but opaque and "however each caller wrote it" are not the same thing. A ban filed against `1.2.3.4` and a check for the `1.2.3.4:51234` a transport actually reports are two strings that never meet, and nothing errors. `GSPunishmentSubject.for_address` strips the port, the scheme and the brackets; `for_uid` adds the prefix if it is not already there; a subject with no prefix at all is still legal, because a deployment that has always written bare ids keeps working.
 
-`ban_address` and `ban_uid` exist as a pair on purpose. An account ban is exact and only works on somebody who has an account; a guest comes back as a different guest, which is most of the people a server has to remove. An address ban catches a household and everybody behind one NAT and is defeated by a router reboot. Neither is sufficient alone; dot-server's `GSBanManager` reached the same conclusion first.
+`ban_address` and `ban_uid` exist as a pair on purpose. An account ban is exact and only works on somebody who has an account; a guest comes back as a different guest, which is most of the people a server has to remove. An address ban catches a household and everybody behind one NAT and is defeated by a router reboot. Neither is sufficient alone; gs-server's `GSBanManager` reached the same conclusion first.
 
 Loopback is refused, as is an address the transport could not report. Both are a mistyped argument far more often than a decision: one locks the operator out of their own listen server and the other bans everybody at once.
 
-## `dot_ban_source`, or the ban that stops nobody
+## `gs_ban_source`, or the ban that stops nobody
 
 **Nothing in this addon can refuse a connection.** There is no session list here and no socket. So a `BAN` recorded with nothing asking about it is a row in a file, and the moderator who issued it has no way to tell the difference.
 
-So the manager registers under `dot_ban_source` (`register_ban_source`, on by default) and answers `check_admission(uid: String, address: String) -> GSResult`. GameSpice Server calls it twice per join: on the address before the client has said who it is, and on both once it has. GameSpice Server's `examples/dedicated_server.gd` loads this addon by path, registers it, and asserts a real `GSServer` refuses a real connection.
+So the manager registers under `gs_ban_source` (`register_ban_source`, on by default) and answers `check_admission(uid: String, address: String) -> GSResult`. GameSpice Server calls it twice per join: on the address before the client has said who it is, and on both once it has. GameSpice Server's `examples/dedicated_server.gd` loads this addon by path, registers it, and asserts a real `GSServer` refuses a real connection.
 
 - **Both spellings of a person are checked.** `check_admission("backbone:evil", …)` and `check_admission("uid:backbone:evil", …)` both refuse, because this addon cannot know which convention a deployment writes, and checking one spelling enforces nothing for the other, silently.
 - **`describe_lines()` warns when bans are in force and nothing is registered.** The likeliest misconfiguration is the one where every part is correct and nobody is asking.
 
 ## The join with GameSpice Voice, and why it is tested
 
-`GSModerationManager` publishes itself in `GSRegistry` under `dot_mute_source` and answers `is_voice_muted(peer)`. `GSVoiceRouter` looks that name up and calls that method. Neither addon imports the other, and a project with only one of them works.
+`GSModerationManager` publishes itself in `GSRegistry` under `gs_mute_source` and answers `is_voice_muted(peer)`. `GSVoiceRouter` looks that name up and calls that method. Neither addon imports the other, and a project with only one of them works.
 
-**That shape is exactly how every expensive bug in this family has started** (a call by name on a client that offered different names; four call sites finding a null service without one erroring). So `_test_voice_actually_asks` runs both halves for real: a moderator mutes a player, the router silences them without being told, the manager is destroyed and rebuilt from the file, and the player is still silenced. The suite links `addons/dot_voice` for it, and that section fails loudly rather than skipping without it: "0 failures" from a suite that ran nothing is how a family ships two ends that never met.
+**That shape is exactly how every expensive bug in this family has started** (a call by name on a client that offered different names; four call sites finding a null service without one erroring). So `_test_voice_actually_asks` runs both halves for real: a moderator mutes a player, the router silences them without being told, the manager is destroyed and rebuilt from the file, and the player is still silenced. The suite links `addons/gs_voice` for it, and that section fails loudly rather than skipping without it: "0 failures" from a suite that ran nothing is how a family ships two ends that never met.
 
 ## Immunity, in both directions
 
@@ -64,7 +64,7 @@ Immunity is about who may be **acted on**, not only who may act, and the second 
 
 ## Deliberately not here
 
-- **Console commands for punishments.** `mute`, `gag` and `ban` belong to GameSpice Server's console, which has permission checking, chat triggers, player targeting and an audit trail. This is the record behind them, and `dot_ban_source` is how the two halves meet. The live tools are the one exception ([mod-tools.md](mod-tools.md)): GameSpice Server cannot know what they mean.
+- **Console commands for punishments.** `mute`, `gag` and `ban` belong to GameSpice Server's console, which has permission checking, chat triggers, player targeting and an audit trail. This is the record behind them, and `gs_ban_source` is how the two halves meet. The live tools are the one exception ([mod-tools.md](mod-tools.md)): GameSpice Server cannot know what they mean.
 - **A per-address connection limit.** Admission belongs where the sessions are: `sv_max_connections_per_ip` and `GSAddressGuard`, in GameSpice Server.
 - **Kicking anybody.** No session list, no socket. It records that a kick happened.
 - **An appeals workflow.** `evidence` holds a ticket number; the workflow is a website.

@@ -4,7 +4,7 @@ Moderation that survives a reconnect: bans, kicks, gags, voice mutes and warning
 
 Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is specific to moderation. The reasoning is in [docs/](docs/README.md).
 
-**Only GameSpice Core is a dependency.** GameSpice Server, GameSpice Voice and GameSpice SQL are optional and none is named in the source: they meet through `GSRegistry` names (`dot_ban_source`, `dot_mute_source`), duck-typed console hosts, and an untyped SQL driver. The suites link GameSpice Voice and GameSpice SQL (`.gitignore`).
+**Only GameSpice Core is a dependency.** GameSpice Server, GameSpice Voice and GameSpice SQL are optional and none is named in the source: they meet through `GSRegistry` names (`gs_ban_source`, `gs_mute_source`), duck-typed console hosts, and an untyped SQL driver. The suites link GameSpice Voice and GameSpice SQL (`.gitignore`).
 
 ## Read before
 
@@ -20,19 +20,19 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 | Path | What |
 | --- | --- |
-| `addons/dot_moderation/core/` | `GSPunishment` (the record), `GSPunishmentSubject` (how a uid or an address is spelled) |
-| `addons/dot_moderation/runtime/` | `GSModerationManager`: the set in force; registers `dot_ban_source` and `dot_mute_source` |
-| `addons/dot_moderation/store/` | `GSPunishmentStore` (abstract), file, SQL (on GameSpice SQL, duck-typed), REST; `GSPunishmentSchema` |
-| `addons/dot_moderation/tools/` | `GSModTools`: teleport and return, and the handler table |
-| `addons/dot_moderation/integrations/` | `GSModToolCommands`: the live tools as console commands on any host |
+| `addons/gs_moderation/core/` | `GSPunishment` (the record), `GSPunishmentSubject` (how a uid or an address is spelled) |
+| `addons/gs_moderation/runtime/` | `GSModerationManager`: the set in force; registers `gs_ban_source` and `gs_mute_source` |
+| `addons/gs_moderation/store/` | `GSPunishmentStore` (abstract), file, SQL (on GameSpice SQL, duck-typed), REST; `GSPunishmentSchema` |
+| `addons/gs_moderation/tools/` | `GSModTools`: teleport and return, and the handler table |
+| `addons/gs_moderation/integrations/` | `GSModToolCommands`: the live tools as console commands on any host |
 | `examples/moderation_selftest.tscn` | the suite (links GameSpice Voice and GameSpice SQL's recording driver) |
 | `examples/moderation_sql_live.tscn` | the SQL store against real SQLite, Postgres and MySQL |
 | `examples/punishment_api_server.gd` | a real HTTP server the REST store is tested against |
 
 ## Running and testing
 
-- The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), then `godot --headless --path . res://examples/moderation_selftest.tscn`. Without `addons/dot_voice` linked its last section fails loudly, on purpose.
-- Anything in the SQL store: `../dot-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn` with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. [storage](docs/storage.md#testing)
+- The family's two steps ([family CLAUDE.md](../../CLAUDE.md#validating-anything)), then `godot --headless --path . res://examples/moderation_selftest.tscn`. Without `addons/gs_voice` linked its last section fails loudly, on purpose.
+- Anything in the SQL store: `../gs-sql/tools/test_live.sh . res://examples/moderation_sql_live.tscn` with `GS_SQL_PG_DSN` and `GS_SQL_MYSQL_DSN` set. [storage](docs/storage.md#testing)
 - A change to admission is not done until GameSpice Server's `examples/dedicated_server.gd` still refuses a banned connection.
 
 ## Rules that bite
@@ -45,8 +45,8 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 - Expiry is answered on read, never swept. [records](docs/records.md#expiry-is-answered-on-read-never-swept)
 - A subject is never a peer id; set `key_for_peer` (unset is `str(peer)` and warns). [records](docs/records.md#the-subject-is-never-a-peer-id)
 - Spell subjects through `GSPunishmentSubject.for_address` / `for_uid`; `ban_address` and `ban_uid` are a pair; loopback and unknown addresses are refused. [records](docs/records.md#an-address-is-a-subject-too-and-how-it-is-spelled-is-the-whole-trick)
-- A ban stops nobody unless something asks: `check_admission` on `dot_ban_source` checks both spellings of a uid; `describe_lines()` warns when nothing is registered. [records](docs/records.md#dot_ban_source-or-the-ban-that-stops-nobody)
-- The GameSpice Voice join is tested by running both halves for real. [records](docs/records.md#the-join-with-dot-voice-and-why-it-is-tested)
+- A ban stops nobody unless something asks: `check_admission` on `gs_ban_source` checks both spellings of a uid; `describe_lines()` warns when nothing is registered. [records](docs/records.md#gs_ban_source-or-the-ban-that-stops-nobody)
+- The GameSpice Voice join is tested by running both halves for real. [records](docs/records.md#the-join-with-gs-voice-and-why-it-is-tested)
 - Immunity guards the target as well as the actor; equal cannot act on equal; zero is no immunity; acting on yourself is never an immunity question. [records](docs/records.md#immunity-in-both-directions)
 
 **Storage**
@@ -59,7 +59,7 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 
 - Save the position before a move; `goto` stops short; positions are `Variant`; the return history is capped; every action is a `WARN`. [mod-tools](docs/mod-tools.md#moving-people)
 - An ability with no handler refuses with the game's reason; respawn clears through the handlers and re-applies god and buddha; a timed release checks its serial. [mod-tools](docs/mod-tools.md#the-rest-of-the-admin-set-is-a-handler-table)
-- Commands target through the server's `resolve_target`; a protected player is skipped from a group and counted; a name already registered is never taken. [mod-tools](docs/mod-tools.md#the-commands-and-why-they-are-here-rather-than-in-dot-server)
+- Commands target through the server's `resolve_target`; a protected player is skipped from a group and counted; a name already registered is never taken. [mod-tools](docs/mod-tools.md#the-commands-and-why-they-are-here-rather-than-in-gs-server)
 
 ## Where a game plugs in
 
@@ -67,8 +67,8 @@ Read the family [CLAUDE.md](../../CLAUDE.md) first; this file is only what is sp
 | --- | --- |
 | Who a peer is | `GSModerationManager.key_for_peer` |
 | Where punishments live | `GSPunishmentStoreFile`, `GSPunishmentStoreSql` (with a GameSpice SQL driver), `GSPunishmentStoreRest`, or a `GSPunishmentStore` subclass |
-| Whether bans refuse connections | `register_ban_source` (on), with GameSpice Server asking `dot_ban_source` |
-| Whether mutes reach voice | `dot_mute_source`, asked by `GSVoiceRouter` |
+| Whether bans refuse connections | `register_ban_source` (on), with GameSpice Server asking `gs_ban_source` |
+| Whether mutes reach voice | `gs_mute_source`, asked by `GSVoiceRouter` |
 | What a live tool does in this game | `GSModTools.handlers`, `unsupported_reasons`, `position_fn` / `teleport_fn` |
 | Group targets | `alive_fn`, `team_fn` on the commands |
 | Which abilities survive a respawn | `persist_on_respawn` |

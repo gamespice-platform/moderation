@@ -21,12 +21,12 @@ extends RefCounted
 ## that speaks to Postgres natively numbers them itself at the last moment.
 
 ## Table name. Overridable per store, because an operator may already own `punishments`.
-const DEFAULT_TABLE := "dot_punishments"
+const DEFAULT_TABLE := "gs_punishments"
 
 ## The component name the table's schema version is recorded under, in GameSpice SQL's
 ## migration table. Bumped by adding a step to [method migration_steps], never by editing
 ## one: a database at version 1 must be brought to 2 by what 2 adds.
-const MIGRATION_COMPONENT := "dot_moderation"
+const MIGRATION_COMPONENT := "gs_moderation"
 
 ## Column order. Every INSERT, SELECT and row mapping uses this, so they cannot drift.
 const COLUMNS := [

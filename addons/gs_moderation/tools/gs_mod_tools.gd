@@ -59,7 +59,7 @@ extends Node
 ## broken command, and an admin is owed the difference.
 
 const CHANNEL := "moderation.tools"
-const SERVICE := &"dot_mod_tools"
+const SERVICE := &"gs_mod_tools"
 
 ## An action was carried out.
 signal acted(action: StringName, actor: StringName, target: StringName, detail: Dictionary)

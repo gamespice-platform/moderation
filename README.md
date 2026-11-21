@@ -6,7 +6,7 @@ Part of the [**GameSpice**](https://gamespice.net) collection: modular, MIT-lice
 
 ## Install
 
-Copy `addons/dot_moderation/` and [GameSpice Core](https://github.com/gamespice-platform/core)'s `addons/dot_core/` into your project and enable dot-moderation in **Project > Project Settings > Plugins**. dot-core is the only dependency. It works with [GameSpice Server](https://github.com/gamespice-platform/server) and [GameSpice Voice](https://github.com/gamespice-platform/voice) without importing either.
+Copy `addons/gs_moderation/` and [GameSpice Core](https://github.com/gamespice-platform/core)'s `addons/gs_core/` into your project and enable gs-moderation in **Project > Project Settings > Plugins**. gs-core is the only dependency. It works with [GameSpice Server](https://github.com/gamespice-platform/server) and [GameSpice Voice](https://github.com/gamespice-platform/voice) without importing either.
 
 ## Why it exists next to Server
 
@@ -23,7 +23,7 @@ A `GSPunishment` has a kind (`BAN`, `KICK`, `VOICE_MUTE`, `GAG`, `WARN`), a subj
 
 ### Enforcing bans
 
-This addon cannot refuse a connection itself. The manager registers under `dot_ban_source` and GameSpice Server calls `check_admission(uid: String, address: String) -> GSResult` on every join. With nothing registered a ban stops nobody, and `describe_lines()` says so. `GSModerationManager.register_ban_source` controls this.
+This addon cannot refuse a connection itself. The manager registers under `gs_ban_source` and GameSpice Server calls `check_admission(uid: String, address: String) -> GSResult` on every join. With nothing registered a ban stops nobody, and `describe_lines()` says so. `GSModerationManager.register_ban_source` controls this.
 
 ## Storage
 
@@ -87,12 +87,12 @@ The addon handles the immunity check (acting on yourself is always allowed), the
 
 - Console commands for `mute`, `gag` and `ban` (they belong to GameSpice Server's console, which has permissions and auditing). The live tools are registered onto that console.
 - Kicking players. This addon records a kick, and the server performs it.
-- Per-address connection limits (`sv_max_connections_per_ip` in dot-server) and an appeals workflow (`evidence` holds a ticket number).
+- Per-address connection limits (`sv_max_connections_per_ip` in gs-server) and an appeals workflow (`evidence` holds a ticket number).
 
 ## Test
 
 ```bash
-ln -s ../../dot-core/addons/dot_core addons/dot_core
+ln -s ../../gs-core/addons/gs_core addons/gs_core
 godot --headless --path . res://examples/moderation_selftest.tscn
 ```
 

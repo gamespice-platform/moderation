@@ -71,7 +71,7 @@ func load_all() -> GSResult:
 	if version > FORMAT_VERSION:
 		return GSResult.fail(
 			GSError.CODE_UNSUPPORTED,
-			"The moderation file was written by a newer version of dot-moderation.",
+			"The moderation file was written by a newer version of gs-moderation.",
 			"file says %d, this build reads %d" % [version, FORMAT_VERSION]
 		)
 

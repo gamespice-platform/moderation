@@ -26,15 +26,15 @@ extends Node
 ## and on the player's history. GameSpice Server keeps its own ban list and nothing about it
 ## changes; this is what a deployment adds when it wants a mute to mean something.
 ##
-## [b]It publishes itself as [code]dot_mute_source[/code][/b], which is the name
+## [b]It publishes itself as [code]gs_mute_source[/code][/b], which is the name
 ## [GSVoiceRouter] looks up. That is the whole integration: neither addon imports the
 ## other, and a project with only one of them works.
 
 const CHANNEL := "moderation"
-const SERVICE := &"dot_moderation"
+const SERVICE := &"gs_moderation"
 
 ## The registry name GameSpice Voice's router asks for. Answering it is the integration.
-const MUTE_SERVICE := &"dot_mute_source"
+const MUTE_SERVICE := &"gs_mute_source"
 
 ## The registry name GameSpice Server's admission check looks for.
 ##
@@ -42,7 +42,7 @@ const MUTE_SERVICE := &"dot_mute_source"
 ## a connecting client may be admitted, this answers, and neither addon names the other.
 ## What is registered here answers
 ## [code]check_admission(uid: String, address: String) -> GSResult[/code].
-const BAN_SERVICE := &"dot_ban_source"
+const BAN_SERVICE := &"gs_ban_source"
 
 ## A punishment was issued.
 signal punished(punishment: GSPunishment)
@@ -479,7 +479,7 @@ func is_banned_address(address: String) -> bool:
 ## Whether somebody connecting as [param uid] from [param address] may be admitted.
 ##
 ## [b]The method GameSpice Server calls on whatever is registered as
-## [code]dot_ban_source[/code][/b], and the only way a ban recorded here stops anybody:
+## [code]gs_ban_source[/code][/b], and the only way a ban recorded here stops anybody:
 ## this addon has no session list and no socket, so a ban it enforces itself is a ban
 ## nobody is refused by.
 ##
@@ -677,7 +677,7 @@ func describe_lines() -> PackedStringArray:
 		# and the moderator who issued one has no way to tell the difference.
 		out.append("WARNING   %d ban(s) in force and nothing is enforcing them:"
 			% _active_bans())
-		out.append("          register_ban_source is off, so dot-server never asks")
+		out.append("          register_ban_source is off, so gs-server never asks")
 
 	if not key_for_peer.is_valid():
 		# Surfaced where an operator looks, not only in a log line at boot. A mapping
