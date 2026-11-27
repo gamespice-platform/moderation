@@ -2,7 +2,7 @@
 
 Bans, kicks, chat gags, voice mutes and warnings as one durable record that survives a reconnect, with pluggable storage so several servers can share one list. Also the live tools a moderator uses on a player: teleporting, freezing, noclip and so on.
 
-Part of the [**GameSpice**](https://gamespice.net) collection: modular, MIT-licensed building blocks for games on the GameSpice platform (only the TMC website back end is closed). It was built with Claude Code and its headless suite passes, but little of it has met real players yet, so expect rough edges and please report what you find.
+gs-moderation is a [GameSpice](https://gamespice.net) addon. It is MIT licensed, built with Claude Code and covered by a headless suite (`examples/moderation_selftest.tscn`). The games in [Zee's Games](https://zeesgames.com) are built on the GameSpice addons and run on live servers, where it holds the bans and mutes.
 
 ## Install
 
@@ -95,6 +95,27 @@ The addon handles the immunity check (acting on yourself is always allowed), the
 ln -s ../../gs-core/addons/gs_core addons/gs_core
 godot --headless --path . res://examples/moderation_selftest.tscn
 ```
+
+## Used by
+
+Games that vendor this addon:
+
+- [Fatal Contact](https://zeesgames.com/fatal-contact)
+- [Airdrift](https://zeesgames.com/airdrift)
+- [Playlot](https://zeesgames.com/playlot)
+- [Hungario](https://zeesgames.com/hungario)
+- [Buses From Hell](https://zeesgames.com/buses-from-hell)
+- [Smash Copter](https://zeesgames.com/smash-copter)
+- [Zombie Zone](https://zeesgames.com/zombie-zone)
+- [Hide n Seek](https://zeesgames.com/hide-n-seek)
+- [Prop Hunt](https://zeesgames.com/prop-hunt)
+- [Murder Mystery](https://zeesgames.com/murder-mystery)
+- [Deathrun](https://zeesgames.com/deathrun)
+- [Wipeout](https://zeesgames.com/wipeout)
+- [Dangerous Delivery](https://zeesgames.com/dangerous-delivery)
+- [Look At Me](https://zeesgames.com/look-at-me)
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
 
 ## Licence
 
